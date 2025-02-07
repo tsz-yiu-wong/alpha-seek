@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+aiohttp
+redis
+influxdb-client
+pydantic
+pydantic-settings
+python-dotenv 
