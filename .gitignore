@@ -1,2 +1,6 @@
-./backend/__pycache__
-./frontend/node_modules
+DS_Store
+backend/__pycache__
+frontend/node_modules
+
+test.py
+test2.py
