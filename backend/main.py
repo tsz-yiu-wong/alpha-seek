@@ -17,7 +17,7 @@ async def get_list_of_token_pools(token_list, chain_id=None):
         for item in token_list:
             tasks.append(data_fetcher.fetch_one_token_pairs(item['chainId'], item['tokenAddress']))
         results = await asyncio.gather(*tasks)
-        token_pools = [item for item in results]
+        token_pools = [item for sublist in results for item in sublist]
 
     else:
         address_list = [item['tokenAddress'] for item in token_list]
@@ -28,14 +28,8 @@ async def get_list_of_token_pools(token_list, chain_id=None):
         ]
         results = await asyncio.gather(*tasks)
         token_pools = [item for sublist in results for item in sublist]
-    
 
     for item, token_pool in zip(token_list, token_pools):
-        print("item")
-        print(item)
-        print("token_pool")
-        print(token_pool)
-
         summary_data = {
             'tokenAddress': item.get('tokenAddress', None),
             'icon': item.get('icon', None),
@@ -64,17 +58,12 @@ async def get_list_of_token_pools(token_list, chain_id=None):
             'liquidity_base': token_pool.get('liquidity', {}).get('base', None),
             'liquidity_quote': token_pool.get('liquidity', {}).get('quote', None),
         }
-        print("summary_data")
-        print(summary_data)
         summary_list.append(summary_data)
-    print("summary_list")
-    print(summary_list[0])
+
     return summary_list
 
 async def get_latest_token_data():
     latest_token_list = await data_fetcher.fetch_latest_token_profiles()
-    print("latest_token_list")
-    print(latest_token_list)
     return await get_list_of_token_pools(latest_token_list)
 
 async def get_latest_boosts_token_data():
@@ -90,36 +79,26 @@ async def get_solana_pool_data():
     return await get_list_of_token_pools(solana_list, 'solana')
 
 
-async def periodic_data_update(time_interval=5):
+async def periodic_data_update(time_interval=15):
     while True:
         try:
-            '''
+            
             tasks = [
                 get_latest_token_data(),
                 get_latest_boosts_token_data(),
                 get_top_boosts_token_data(),
-                get_solana_pool_list()
+                get_solana_pool_data()
             ]
             results = await asyncio.gather(*tasks, return_exceptions=True)
-            print("results")
-            print(results)
+
             data = {
                 "timestamp": str(datetime.now()),
-                "profiles": results[0] if not isinstance(results[0], Exception) else None,
+                "latest_token": results[0] if not isinstance(results[0], Exception) else None,
                 "latest_boosts": results[1] if not isinstance(results[1], Exception) else None,
                 "top_boosts": results[2] if not isinstance(results[2], Exception) else None,
-                "pairs": results[3] if not isinstance(results[3], Exception) else None
+                "solana_pool": results[3] if not isinstance(results[3], Exception) else None
             }
-            '''
-            profiles = await get_latest_token_data()
-            #pairs = await get_solana_pool_data()
-            data = {
-                "timestamp": str(datetime.now()),
-                "profiles": profiles,
-                "latest_boosts": None,
-                "top_boosts": None,
-                "pairs": None
-            }
+            
             await manager.broadcast(data)
             await asyncio.sleep(time_interval)
 
@@ -159,5 +138,10 @@ async def websocket_endpoint(websocket: WebSocket):
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 
 
-    #data = asyncio.run(get_solana_pool_data())
-    #print(data)
+    '''
+    async def main():
+        data = await get_latest_token_data()
+        print(data[0])
+
+    asyncio.run(main())
+    '''
