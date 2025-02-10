@@ -2,21 +2,47 @@ import { createStore } from 'vuex'
 
 export default createStore({
   state: {
-    coinData: {}
+    ws: null,
+    isConnected: false,
+    data: {}
   },
   mutations: {
-    updateCoinData(state, data) {
-      state.coinData = data
+    SET_WEBSOCKET(state, ws) {
+      state.ws = ws
+    },
+    SET_CONNECTION_STATUS(state, status) {
+      state.isConnected = status
+    },
+    UPDATE_DATA(state, data) {
+      state.data = data
     }
   },
   actions: {
-    async fetchCoinData({ commit }, coinId) {
-      try {
-        const response = await fetch(`http://localhost:8000/api/coins/${coinId}`)
-        const data = await response.json()
-        commit('updateCoinData', data)
-      } catch (error) {
-        console.error('Error fetching coin data:', error)
+    initWebSocket({ commit, state }) {
+      if (state.ws) return // 如果已经存在连接，就不再创建新的
+
+      const ws = new WebSocket('ws://localhost:8000/ws')
+      
+      ws.onopen = () => {
+        commit('SET_CONNECTION_STATUS', true)
+      }
+      
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data)
+        commit('UPDATE_DATA', data)
+      }
+      
+      ws.onclose = () => {
+        commit('SET_CONNECTION_STATUS', false)
+      }
+      
+      commit('SET_WEBSOCKET', ws)
+    },
+    closeWebSocket({ state, commit }) {
+      if (state.ws) {
+        state.ws.close()
+        commit('SET_WEBSOCKET', null)
+        commit('SET_CONNECTION_STATUS', false)
       }
     }
   }

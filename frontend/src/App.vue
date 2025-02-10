@@ -6,7 +6,10 @@
 
 <script>
 export default {
-  name: 'App'
+  name: 'App',
+  beforeUnmount() {
+    this.$store.dispatch('closeWebSocket')
+  }
 }
 </script>
 

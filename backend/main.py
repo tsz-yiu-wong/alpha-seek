@@ -35,6 +35,7 @@ async def get_list_of_token_pools(token_list, chain_id=None):
             'icon': item.get('icon', None),
             'url': item.get('url', None),
             'chainId': item.get('chainId', None),
+            'symbol': token_pool.get('baseToken', {}).get('symbol', None),
             'dexId': token_pool.get('dexId', None),
             'priceNative': token_pool.get('priceNative', None),
             'priceUsd': token_pool.get('priceUsd', None),
@@ -59,7 +60,7 @@ async def get_list_of_token_pools(token_list, chain_id=None):
             'liquidity_quote': token_pool.get('liquidity', {}).get('quote', None),
         }
         summary_list.append(summary_data)
-
+    print(summary_list[0])
     return summary_list
 
 async def get_latest_token_data():
@@ -79,24 +80,29 @@ async def get_solana_pool_data():
     return await get_list_of_token_pools(solana_list, 'solana')
 
 
-async def periodic_data_update(time_interval=15):
+async def periodic_data_update(time_interval=10):
     while True:
         try:
-            
+            '''
             tasks = [
+                get_solana_pool_data(),
                 get_latest_token_data(),
                 get_latest_boosts_token_data(),
                 get_top_boosts_token_data(),
-                get_solana_pool_data()
             ]
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
             data = {
                 "timestamp": str(datetime.now()),
-                "latest_token": results[0] if not isinstance(results[0], Exception) else None,
-                "latest_boosts": results[1] if not isinstance(results[1], Exception) else None,
-                "top_boosts": results[2] if not isinstance(results[2], Exception) else None,
-                "solana_pool": results[3] if not isinstance(results[3], Exception) else None
+                "solana_pool": results[0] if not isinstance(results[3], Exception) else None,
+                "latest_token": results[1] if not isinstance(results[0], Exception) else None,
+                "latest_boosts": results[2] if not isinstance(results[1], Exception) else None,
+                "top_boosts": results[3] if not isinstance(results[2], Exception) else None
+            }
+            '''
+            data = {
+                "timestamp": str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+                "solana_pool": await get_solana_pool_data()
             }
             
             await manager.broadcast(data)
