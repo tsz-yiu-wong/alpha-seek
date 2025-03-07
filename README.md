@@ -1,1 +1,1 @@
-# meme-coin-analysis
+# alphaseek

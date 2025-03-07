@@ -3,31 +3,29 @@ version: '3.8'
 services:
   backend:
     build: 
-      context: ../backend
-      dockerfile: ../docker/Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile.backend
     ports:
       - "8000:8000"
-    depends_on:
-      - redis
-      - influxdb
-
-  redis:
-    image: redis:alpine
-    ports:
-      - "6379:6379"
-
-  influxdb:
-    image: influxdb:latest
-    ports:
-      - "8086:8086"
     environment:
-      - DOCKER_INFLUXDB_INIT_MODE=setup
-      - DOCKER_INFLUXDB_INIT_USERNAME=admin
-      - DOCKER_INFLUXDB_INIT_PASSWORD=adminpassword
-      - DOCKER_INFLUXDB_INIT_ORG=memeorg
-      - DOCKER_INFLUXDB_INIT_BUCKET=meme_coin_data
-    volumes:
-      - influxdb-data:/var/lib/influxdb2
+      - PORT=8000
+      - API_BASE_URL=http://localhost:8000
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+      - INFLUXDB_ORG=${INFLUXDB_ORG}
+      - INFLUXDB_URL=${INFLUXDB_URL}
+      - FRONTEND_URLS=http://localhost:8080,http://frontend:8080
 
-volumes:
-  influxdb-data: 
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    environment:
+      - VUE_APP_API_BASE_URL=http://localhost:8000
+      - VUE_APP_WS_BASE_URL=ws://localhost:8000/ws
+# volumes:
+  # 如果不再需要 influxdb-data 卷，也可以移除
+  # influxdb-data: 

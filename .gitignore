@@ -1,6 +1,11 @@
 .DS_Store
 backend/__pycache__
+backend/.env
+backend/user.json
 frontend/node_modules
 
+note.txt
+fetch_data.py
 test.py
 test2.py
+test3.py

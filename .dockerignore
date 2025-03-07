@@ -1,0 +1,14 @@
+.git
+.github
+.gitignore
+.vscode
+.DS_Store
+
+frontend/node_modules/
+backend/__pycache__/
+
+note.txt
+README.md
+test.py
+test2.py
+test3.py

@@ -1,116 +1,60 @@
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket
-from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import asyncio
+import json
 from datetime import datetime
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, WebSocket, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+import os
 
 from data_fetcher import DataFetcher
 from websocket import manager
 
-async def get_list_of_token_pools(token_list, chain_id=None):
 
-    summary_list = []
+async def get_full_data(data_fetcher: DataFetcher, username=None):
+    """获取完整的数据，包括基础数据和用户收藏（如果有）"""
+    solana_token_list = await data_fetcher.only_solana_token_profiles_list()
+    solana_token_data = await data_fetcher.fetch_data_for_token_profiles_list(solana_token_list, "solana")
+    solana_filtered_data = await data_fetcher.filter_data_for_web(solana_token_list, solana_token_data)
+    
+    base_token_list = await data_fetcher.only_base_token_profiles_list()
+    base_token_data = await data_fetcher.fetch_data_for_token_profiles_list(base_token_list, "base")
+    base_filtered_data = await data_fetcher.filter_data_for_web(base_token_list, base_token_data)
 
-    if chain_id == None:
-        tasks = []
-        for item in token_list:
-            tasks.append(data_fetcher.fetch_one_token_pairs(item['chainId'], item['tokenAddress']))
-        results = await asyncio.gather(*tasks)
-        token_pools = [item for sublist in results for item in sublist]
+    bsc_token_list = await data_fetcher.only_bsc_token_profiles_list()
+    bsc_token_data = await data_fetcher.fetch_data_for_token_profiles_list(bsc_token_list, "bsc")
+    bsc_filtered_data = await data_fetcher.filter_data_for_web(bsc_token_list, bsc_token_data)
 
-    else:
-        address_list = [item['tokenAddress'] for item in token_list]
-        split_address_list = [address_list[i:i+30] for i in range(0, len(address_list), 30)]
-        tasks = [
-            data_fetcher.fetch_multiple_token_pairs(chain_id, address_chunk)
-            for address_chunk in split_address_list
-        ]
-        results = await asyncio.gather(*tasks)
-        token_pools = [item for sublist in results for item in sublist]
-
-    for item, token_pool in zip(token_list, token_pools):
-        summary_data = {
-            'tokenAddress': item.get('tokenAddress', None),
-            'icon': item.get('icon', None),
-            'url': item.get('url', None),
-            'chainId': item.get('chainId', None),
-            'symbol': token_pool.get('baseToken', {}).get('symbol', None),
-            'dexId': token_pool.get('dexId', None),
-            'priceNative': token_pool.get('priceNative', None),
-            'priceUsd': token_pool.get('priceUsd', None),
-            'txns_m5_buy': token_pool.get('txns', {}).get('m5', {}).get('buys', None),
-            'txns_m5_sell': token_pool.get('txns', {}).get('m5', {}).get('sells', None),
-            'txns_h1_buy': token_pool.get('txns', {}).get('h1', {}).get('buys', None),
-            'txns_h1_sell': token_pool.get('txns', {}).get('h1', {}).get('sells', None),
-            'txns_h6_buy': token_pool.get('txns', {}).get('h6', {}).get('buys', None),
-            'txns_h6_sell': token_pool.get('txns', {}).get('h6', {}).get('sells', None),
-            'txns_h24_buy': token_pool.get('txns', {}).get('h24', {}).get('buys', None),
-            'txns_h24_sell': token_pool.get('txns', {}).get('h24', {}).get('sells', None),
-            'volume_m5': token_pool.get('volume', {}).get('m5', None),
-            'volume_h1': token_pool.get('volume', {}).get('h1', None),
-            'volume_h6': token_pool.get('volume', {}).get('h6', None),
-            'volume_h24': token_pool.get('volume', {}).get('h24', None),
-            'priceChange_m5': token_pool.get('priceChange', {}).get('m5', None),
-            'priceChange_h1': token_pool.get('priceChange', {}).get('h1', None),
-            'priceChange_h6': token_pool.get('priceChange', {}).get('h6', None),
-            'priceChange_h24': token_pool.get('priceChange', {}).get('h24', None),
-            'liquidity_usd': token_pool.get('liquidity', {}).get('usd', None),    
-            'liquidity_base': token_pool.get('liquidity', {}).get('base', None),
-            'liquidity_quote': token_pool.get('liquidity', {}).get('quote', None),
-        }
-        summary_list.append(summary_data)
-    print(summary_list[0])
-    return summary_list
-
-async def get_latest_token_data():
-    latest_token_list = await data_fetcher.fetch_latest_token_profiles()
-    return await get_list_of_token_pools(latest_token_list)
-
-async def get_latest_boosts_token_data():
-    latest_boosts = await data_fetcher.fetch_latest_boosted_token()
-    return await get_list_of_token_pools(latest_boosts)
-
-async def get_top_boosts_token_data():
-    top_boosts = await data_fetcher.fetch_top_boosted_token()
-    return await get_list_of_token_pools(top_boosts)
-
-async def get_solana_pool_data():
-    solana_list = await data_fetcher.only_solana_list()
-    return await get_list_of_token_pools(solana_list, 'solana')
+    data = {
+        "timestamp": str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+        "solana_pool": solana_filtered_data,
+        "base_pool": base_filtered_data,
+        "bsc_pool": bsc_filtered_data
+    }
+    
+    if username:
+        data['favorite_tokens'] = await data_fetcher.fetch_data_for_user_favorite(username)
+    
+    return data
 
 
 async def periodic_data_update(time_interval=10):
     while True:
         try:
-            '''
-            tasks = [
-                get_solana_pool_data(),
-                get_latest_token_data(),
-                get_latest_boosts_token_data(),
-                get_top_boosts_token_data(),
-            ]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-
-            data = {
-                "timestamp": str(datetime.now()),
-                "solana_pool": results[0] if not isinstance(results[3], Exception) else None,
-                "latest_token": results[1] if not isinstance(results[0], Exception) else None,
-                "latest_boosts": results[2] if not isinstance(results[1], Exception) else None,
-                "top_boosts": results[3] if not isinstance(results[2], Exception) else None
-            }
-            '''
-            data = {
-                "timestamp": str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
-                "solana_pool": await get_solana_pool_data()
-            }
-            
-            await manager.broadcast(data)
+            for connection in manager.active_connections:
+                try:
+                    username = getattr(connection, 'username', None)
+                    data = await get_full_data(data_fetcher, username)
+                    await manager.send_personal_message(data, connection)
+                except Exception as e:
+                    print(f"Error sending data to connection: {e}")
+                    continue
             await asyncio.sleep(time_interval)
 
         except Exception as e:
-            print(f"Error in periodic_data_broadcast: {e}")
+            print(f"Error in periodic_data_update: {e}")
             await asyncio.sleep(1)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -119,16 +63,23 @@ async def lifespan(app: FastAPI):
     update_task.cancel()
     await data_fetcher.close_session()
 
-app = FastAPI(title="Meme Coin AI Platform", lifespan=lifespan)
 
+app = FastAPI(title="alphaseek", lifespan=lifespan)
+
+# 添加环境变量获取
+# 获取环境变量中的端口，Cloud Run 会自动设置 PORT 环境变量
+PORT = int(os.getenv("PORT", "8000"))
+# 获取允许的前端域名，多个域名用逗号分隔
+FRONTEND_URLS = os.getenv("FRONTEND_URLS", "*").split(",")
+ALLOW_CREDENTIALS = "False" if FRONTEND_URLS == ["*"] else "True"
+#FRONTEND_URLS = ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=FRONTEND_URLS,
+    allow_credentials=ALLOW_CREDENTIALS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 data_fetcher = DataFetcher()
 
@@ -137,12 +88,151 @@ async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
         while True:
-            await websocket.receive_text()
-    except Exception:
+            data = await websocket.receive_json()
+            if data.get('type') == 'login':
+                manager.set_username(websocket, data['username'])
+                user_data = await get_full_data(data_fetcher, data['username'])
+                await manager.send_personal_message(user_data, websocket)
+            elif data.get('type') == 'request_update':
+                username = getattr(websocket, 'username', None)
+                data = await get_full_data(data_fetcher, username)
+                await manager.send_personal_message(data, websocket)
+    except Exception as e:
+        print(f"WebSocket error: {e}")
         manager.disconnect(websocket)
+    finally:
+        await data_fetcher.close_session()
+
+# 加载用户数据
+def load_users():
+    try:
+        with open('user.json', 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Error loading users: {e}")
+        return {"users": []}
+
+@app.post("/api/login")
+async def login(credentials: dict):
+    users = load_users()
+    for user in users["users"]:
+        if (user["username"] == credentials["username"] and 
+            user["password"] == credentials["password"]):
+            async with DataFetcher() as fetcher:
+                data = await get_full_data(fetcher, user["username"])
+                return {
+                    "status": "success",
+                    "username": user["username"],
+                    "data": data
+                }
+    raise HTTPException(status_code=401, detail="Invalid credentials")
+
+def update_user_favorites(username, token_data):
+    """Update user's favorite tokens in user.json"""
+    try:
+        with open('user.json', 'r') as f:
+            data = json.load(f)
+        
+        # 为每个用户添加 favorites 列表（如果不存在）
+        for user in data['users']:
+            if 'favorites' not in user:
+                user['favorites'] = []
+            
+            # 找到对应用户并添加收藏
+            if user['username'] == username:
+                # 检查是否已经存在
+                if token_data not in user['favorites']:
+                    user['favorites'].append(token_data)
+        
+        # 写回文件
+        with open('user.json', 'w') as f:
+            json.dump(data, f, indent=2)
+            
+        return True
+    except Exception as e:
+        print(f"Error updating favorites: {e}")
+        return False
+
+@app.post("/api/add_favorite")
+async def add_favorite(data: dict):
+    try:
+        username = data.get('username')
+        token_data = data.get('tokenData')
+        
+        if not username or not token_data:
+            raise HTTPException(status_code=400, detail="Missing username or token data")
+        
+        if update_user_favorites(username, {
+            'tokenAddress': token_data['tokenAddress'],
+            'icon': token_data['icon'],
+            'url': token_data['url'],
+            'chainId': token_data['chainId']
+        }):
+            # 返回更新后的完整数据
+            async with DataFetcher() as fetcher:
+                return {
+                    "status": "success",
+                    "data": await get_full_data(fetcher, username)
+                }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to update favorites")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+def delete_user_favorite(username, token_address):
+    """Delete a token from user's favorites"""
+    try:
+        with open('user.json', 'r') as f:
+            data = json.load(f)
+        
+        for user in data['users']:
+            if user['username'] == username:
+                # 找到要删除的 token
+                user['favorites'] = [
+                    fav for fav in user['favorites'] 
+                    if fav['tokenAddress'] != token_address
+                ]
+                break
+        
+        # 写回文件
+        with open('user.json', 'w') as f:
+            json.dump(data, f, indent=2)
+            
+        return True
+    except Exception as e:
+        print(f"Error deleting favorite: {e}")
+        return False
+
+@app.post("/api/delete_favorite")
+async def delete_favorite(data: dict):
+    try:
+        username = data.get('username')
+        token_address = data.get('tokenAddress')
+        
+        if not username or not token_address:
+            raise HTTPException(status_code=400, detail="Missing username or token address")
+        
+        if delete_user_favorite(username, token_address):
+            # 返回更新后的完整数据
+            async with DataFetcher() as fetcher:
+                return {
+                    "status": "success",
+                    "data": await get_full_data(fetcher, username)
+                }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to delete favorite")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 
+    uvicorn.run(
+        "main:app", 
+        host="0.0.0.0",  # 监听所有 IP
+        port=PORT,  # 使用环境变量中的端口
+        reload=True
+    )
 
     '''
     async def main():

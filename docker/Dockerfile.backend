@@ -1,0 +1,15 @@
+FROM python:3.9-slim
+
+# 设置工作目录为 /backend，与项目结构保持一致
+WORKDIR /backend
+
+# 复制 requirements.txt
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 复制所有后端文件
+COPY backend/ .
+
+
+# 使用环境变量中的端口
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
