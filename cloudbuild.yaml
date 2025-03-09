@@ -1,6 +1,7 @@
 steps:
   # 构建后端镜像
   - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-backend'
     args:
       - 'build'
       - '--tag=gcr.io/$PROJECT_ID/alphaseek-backend'
@@ -9,6 +10,7 @@ steps:
 
   # 构建前端镜像
   - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-frontend'
     args:
       - 'build'
       - '--tag=gcr.io/$PROJECT_ID/alphaseek-frontend'
@@ -17,14 +19,17 @@ steps:
 
   # 推送后端镜像到 Container Registry
   - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-backend'
     args: ['push', 'gcr.io/$PROJECT_ID/alphaseek-backend']
 
   # 推送前端镜像到 Container Registry
   - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-frontend'
     args: ['push', 'gcr.io/$PROJECT_ID/alphaseek-frontend']
 
   # 部署后端到 Cloud Run
   - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'deploy-backend'
     args:
       - 'run'
       - 'deploy'
@@ -39,6 +44,7 @@ steps:
 
   # 部署前端到 Cloud Run
   - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'deploy-frontend'
     args:
       - 'run'
       - 'deploy'
