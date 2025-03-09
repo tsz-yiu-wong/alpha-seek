@@ -1,11 +1,19 @@
 steps:
   # 构建后端镜像
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/alphaseek-backend', '-f', 'docker/Dockerfile.backend', '.']
+    args:
+      - 'build'
+      - '--tag=gcr.io/$PROJECT_ID/alphaseek-backend'
+      - '--file=docker/Dockerfile.backend'
+      - '.'
 
   # 构建前端镜像
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/alphaseek-frontend', '-f', 'docker/Dockerfile.frontend', '.']
+    args:
+      - 'build'
+      - '--tag=gcr.io/$PROJECT_ID/alphaseek-frontend'
+      - '--file=docker/Dockerfile.frontend'
+      - '.'
 
   # 推送后端镜像到 Container Registry
   - name: 'gcr.io/cloud-builders/docker'
