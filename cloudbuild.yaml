@@ -5,7 +5,8 @@ steps:
     args:
       - 'build'
       - '--tag=gcr.io/$PROJECT_ID/alphaseek-backend'
-      - '--file=docker/Dockerfile.backend'
+      - '-f'
+      - 'docker/Dockerfile.backend'
       - '.'
 
   # 构建前端镜像
@@ -14,7 +15,8 @@ steps:
     args:
       - 'build'
       - '--tag=gcr.io/$PROJECT_ID/alphaseek-frontend'
-      - '--file=docker/Dockerfile.frontend'
+      - '-f'
+      - 'docker/Dockerfile.frontend'
       - '.'
 
   # 推送后端镜像到 Container Registry
