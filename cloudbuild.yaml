@@ -5,27 +5,23 @@ steps:
     entrypoint: 'bash'
     args:
       - '-c'
-      - 'ls -la && ls -la docker/'
+      - 'ls -la && find . -name "Dockerfile*" -type f'
 
   # 构建后端镜像
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-backend'
+    entrypoint: 'bash'
     args:
-      - 'build'
-      - '--tag=gcr.io/$PROJECT_ID/alphaseek-backend'
-      - '-f'
-      - 'docker/Dockerfile.backend'
-      - '.'
+      - '-c'
+      - 'docker build -t gcr.io/$PROJECT_ID/alphaseek-backend -f docker/Dockerfile.backend .'
 
   # 构建前端镜像
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-frontend'
+    entrypoint: 'bash'
     args:
-      - 'build'
-      - '--tag=gcr.io/$PROJECT_ID/alphaseek-frontend'
-      - '-f'
-      - 'docker/Dockerfile.frontend'
-      - '.'
+      - '-c'
+      - 'docker build -t gcr.io/$PROJECT_ID/alphaseek-frontend -f docker/Dockerfile.frontend .'
 
   # 推送后端镜像到 Container Registry
   - name: 'gcr.io/cloud-builders/docker'
