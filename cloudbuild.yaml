@@ -1,4 +1,12 @@
 steps:
+  # 调试步骤
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'debug'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - 'ls -la && ls -la docker/'
+
   # 构建后端镜像
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-backend'
