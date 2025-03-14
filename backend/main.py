@@ -68,15 +68,17 @@ app = FastAPI(title="alphaseek", lifespan=lifespan)
 
 # 添加环境变量获取
 # 获取环境变量中的端口，Cloud Run 会自动设置 PORT 环境变量
-PORT = int(os.getenv("PORT", "8000"))
+PORT = int(os.getenv("PORT", "8080"))
 # 获取允许的前端域名，多个域名用逗号分隔
+
+# 修改 CORS 配置，确保正确处理前端域名
 FRONTEND_URLS = os.getenv("FRONTEND_URLS", "*").split(",")
-ALLOW_CREDENTIALS = "False" if FRONTEND_URLS == ["*"] else "True"
-#FRONTEND_URLS = ["*"]
+ALLOW_CREDENTIALS = False if "*" in FRONTEND_URLS else True
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=FRONTEND_URLS,
-    allow_credentials=ALLOW_CREDENTIALS,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -85,10 +87,23 @@ data_fetcher = DataFetcher()
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
+    print(f"New WebSocket connection attempt from {websocket.client} with headers: {websocket.headers}")
+    
+    # 添加 CORS 头部处理
+    origin = websocket.headers.get("origin", "")
+    print(f"Connection origin: {origin}")
+    
+    # 接受连接前记录更多信息
     try:
+        await manager.connect(websocket)
+        print(f"WebSocket connection established with {websocket.client}")
+        
+        # 发送初始连接成功消息
+        await websocket.send_json({"type": "connection_established", "message": "WebSocket connection established"})
+        
         while True:
             data = await websocket.receive_json()
+            print(f"Received WebSocket data: {data}")
             if data.get('type') == 'login':
                 manager.set_username(websocket, data['username'])
                 user_data = await get_full_data(data_fetcher, data['username'])
@@ -99,9 +114,11 @@ async def websocket_endpoint(websocket: WebSocket):
                 await manager.send_personal_message(data, websocket)
     except Exception as e:
         print(f"WebSocket error: {e}")
-        manager.disconnect(websocket)
+        import traceback
+        print(traceback.format_exc())
     finally:
-        await data_fetcher.close_session()
+        print(f"WebSocket connection closed with {websocket.client}")
+        manager.disconnect(websocket)
 
 # 加载用户数据
 def load_users():
@@ -225,12 +242,26 @@ async def delete_favorite(data: dict):
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+# test api
+@app.get("/api/test")
+async def test():
+    return {"status": "success"}
+
+@app.get("/api/data")
+async def get_data():
+    """提供轮询数据的接口，作为 WebSocket 的备用方案"""
+    try:
+        data = await get_full_data(data_fetcher)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     uvicorn.run(
         "main:app", 
         host="0.0.0.0",  # 监听所有 IP
-        port=PORT,  # 使用环境变量中的端口
+        port=8000,  # 使用环境变量中的端口
         reload=True
     )
 

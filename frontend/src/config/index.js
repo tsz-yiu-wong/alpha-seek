@@ -2,8 +2,11 @@
 const isDevelopment = process.env.NODE_ENV === 'development';
 
 // 使用环境变量或默认值
-const apiBaseUrl = process.env.VUE_APP_API_BASE_URL || 'http://backend:8000';
-const wsBaseUrl = process.env.VUE_APP_WS_BASE_URL || 'ws://backend:8000';
+const apiBaseUrl = process.env.VUE_APP_API_BASE_URL || 'http://localhost:8000';
+const wsBaseUrl = process.env.VUE_APP_WS_BASE_URL || 'ws://localhost:8000';
+
+console.log('API Base URL:', apiBaseUrl);
+console.log('WS Base URL:', wsBaseUrl);
 
 // 基础配置
 const config = {
@@ -27,8 +30,17 @@ const config = {
   }
 };
 
-// 计算派生值
-// config.wsBaseUrl = config.apiBaseUrl.replace(/^http/, 'ws');
+// 确保 WebSocket URL 格式正确
+if (config.wsBaseUrl.startsWith('https://')) {
+  config.wsBaseUrl = config.wsBaseUrl.replace('https://', 'wss://');
+} else if (config.wsBaseUrl.startsWith('http://')) {
+  config.wsBaseUrl = config.wsBaseUrl.replace('http://', 'ws://');
+}
+
+// 确保URL不以斜杠结尾，避免路径问题
+if (config.wsBaseUrl.endsWith('/')) {
+  config.wsBaseUrl = config.wsBaseUrl.slice(0, -1);
+}
 
 // 在开发环境中输出配置信息
 if (isDevelopment) {
