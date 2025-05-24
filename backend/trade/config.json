@@ -1,0 +1,14 @@
+{
+  "solana_wallets": [
+    {
+      "public_key": "C67HqqVxPZjghcma2B8yvdfAXTRsES212NbVA1X9g1mS",
+      "private_key": "87740b93a5943a08d64713214dc67f1cf4d6353fbf539cd8979ddcec31c535b5a4bf92a25b809214a1cce60b1ddca769d6a98edda9880616ce52cc38bb15a1e9",
+      "type": "random"
+    },
+    {
+      "public_key": "14DqQN96wDQikLMbLVp6pzQCdyD6cjjaYkV4zH7EVVQo",
+      "private_key": "33caab93036a3bd1faf2c8a76b9fcf5466483037ec4596a952d58a3bd569763600d341257f9345cb464cec8a600c4254bfc1c163a923aa127fd5b5f675f926c4",
+      "type": "random"
+    }
+  ]
+}

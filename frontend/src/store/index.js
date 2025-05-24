@@ -31,14 +31,12 @@ export default createStore({
 
       // 确保 WebSocket URL 是正确的
       const wsUrl = `${config.wsBaseUrl}/ws`.replace(/\/ws\/ws$/, '/ws');
-      console.log("正在连接 WebSocket: ", wsUrl);
       
       // 添加WebSocket连接重试逻辑
       const connectWebSocket = () => {
         const ws = new WebSocket(wsUrl);
         
         ws.onopen = () => {
-          console.log("WebSocket 连接已建立");
           commit('SET_CONNECTION_STATUS', true);
           
           // WebSocket 连接建立后立即请求数据
@@ -60,7 +58,6 @@ export default createStore({
         
         ws.onclose = (event) => {
           commit('SET_CONNECTION_STATUS', false)
-          console.log(`WebSocket 连接已关闭，代码: ${event.code}，原因: ${event.reason}`);
         }
         
         ws.onerror = (error) => {

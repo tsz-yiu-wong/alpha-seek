@@ -1,8 +1,11 @@
 .DS_Store
-backend/__pycache__
-backend/.env
-backend/user.json
-frontend/node_modules
+__pycache__
+node_modules
+
+.env
+.cursorrules
+
+user.json
 
 note.txt
 fetch_data.py

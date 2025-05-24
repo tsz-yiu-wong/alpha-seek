@@ -2,11 +2,9 @@
 const isDevelopment = process.env.NODE_ENV === 'development';
 
 // 使用环境变量或默认值
-const apiBaseUrl = process.env.VUE_APP_API_BASE_URL || 'http://localhost:8000';
-const wsBaseUrl = process.env.VUE_APP_WS_BASE_URL || 'ws://localhost:8000';
+const apiBaseUrl = process.env.VUE_APP_API_BASE_URL || 'http://localhost:8080';
+const wsBaseUrl = process.env.VUE_APP_WS_BASE_URL || 'ws://localhost:8080';
 
-console.log('API Base URL:', apiBaseUrl);
-console.log('WS Base URL:', wsBaseUrl);
 
 // 基础配置
 const config = {

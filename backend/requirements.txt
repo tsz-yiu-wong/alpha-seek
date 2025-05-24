@@ -10,3 +10,10 @@ python-dotenv
 #dababase
 influxdb3-python
 pandas
+
+#websocket
+websockets
+
+#web3
+hyperliquid-python-sdk
+bip39
