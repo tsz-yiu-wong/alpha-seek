@@ -1,0 +1,233 @@
+[
+    {
+        "chainId": "hyperevm",
+        "dexId": "hyperswap",
+        "url": "https://dexscreener.com/hyperevm/0x9f8c4d60865eb7f0b6add6526b7b40b7dc40ffd8",
+        "pairAddress": "0x9f8c4D60865eB7F0b6adD6526B7B40b7Dc40fFd8",
+        "labels": [
+            "v3"
+        ],
+        "baseToken": {
+            "address": "0x9c84D78839ADe4d3211a9b5fa73Ef079eca4f739",
+            "name": "WET",
+            "symbol": "WET"
+        },
+        "quoteToken": {
+            "address": "0x5555555555555555555555555555555555555555",
+            "name": "Wrapped HYPE",
+            "symbol": "WHYPE"
+        },
+        "priceNative": "0.000002217",
+        "priceUsd": "0.00008200",
+        "txns": {
+            "m5": {
+                "buys": 0,
+                "sells": 1
+            },
+            "h1": {
+                "buys": 32,
+                "sells": 1
+            },
+            "h6": {
+                "buys": 32,
+                "sells": 1
+            },
+            "h24": {
+                "buys": 32,
+                "sells": 1
+            }
+        },
+        "volume": {
+            "h24": 4300.33,
+            "h6": 4300.33,
+            "h1": 4300.33,
+            "m5": 5.05
+        },
+        "priceChange": {
+            "m5": 0.37,
+            "h1": 964,
+            "h6": 964,
+            "h24": 964
+        },
+        "liquidity": {
+            "usd": 12315.87,
+            "base": 75087499,
+            "quote": 166.4814
+        },
+        "fdv": 82007,
+        "marketCap": 82007,
+        "pairCreatedAt": 1748301780000,
+        "info": {
+            "imageUrl": "https://dd.dexscreener.com/ds-data/tokens/hyperevm/0x9c84d78839ade4d3211a9b5fa73ef079eca4f739.png?key=b323de",
+            "header": "https://dd.dexscreener.com/ds-data/tokens/hyperevm/0x9c84d78839ade4d3211a9b5fa73ef079eca4f739/header.png?key=b323de",
+            "openGraph": "https://cdn.dexscreener.com/token-images/og/hyperevm/0x9c84d78839ade4d3211a9b5fa73ef079eca4f739?timestamp=1748341200000",
+            "websites": [
+                {
+                    "label": "Website",
+                    "url": "https://www.wetonhl.xyz/"
+                }
+            ],
+            "socials": [
+                {
+                    "type": "twitter",
+                    "url": "https://x.com/WetonHL"
+                }
+            ]
+        }
+    },
+    {
+        "chainId": "ethereum",
+        "dexId": "uniswap",
+        "url": "https://dexscreener.com/ethereum/0x8ae77a797b728247ba214a879cc446770779fac0",
+        "pairAddress": "0x8AE77A797b728247bA214a879cC446770779fAc0",
+        "labels": [
+            "v2"
+        ],
+        "baseToken": {
+            "address": "0xB50D65c460dd63C865e92C61dF13a47DEc24F4df",
+            "name": "Shooky",
+            "symbol": "SHOOKY"
+        },
+        "quoteToken": {
+            "address": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+            "name": "Wrapped Ether",
+            "symbol": "WETH"
+        },
+        "priceNative": "0.00000000001883",
+        "priceUsd": "0.00000004963",
+        "txns": {
+            "m5": {
+                "buys": 16,
+                "sells": 8
+            },
+            "h1": {
+                "buys": 109,
+                "sells": 83
+            },
+            "h6": {
+                "buys": 109,
+                "sells": 83
+            },
+            "h24": {
+                "buys": 109,
+                "sells": 83
+            }
+        },
+        "volume": {
+            "h24": 25997.38,
+            "h6": 25997.38,
+            "h1": 25997.38,
+            "m5": 2301.29
+        },
+        "priceChange": {
+            "m5": 51.95,
+            "h1": 400,
+            "h6": 400,
+            "h24": 400
+        },
+        "liquidity": {
+            "usd": 12222.27,
+            "base": 123119373188,
+            "quote": 2.3191
+        },
+        "fdv": 20881,
+        "marketCap": 20881,
+        "pairCreatedAt": 1748338655000,
+        "info": {
+            "imageUrl": "https://dd.dexscreener.com/ds-data/tokens/ethereum/0xb50d65c460dd63c865e92c61df13a47dec24f4df.png?key=8cda84",
+            "header": "https://dd.dexscreener.com/ds-data/tokens/ethereum/0xb50d65c460dd63c865e92c61df13a47dec24f4df/header.png?key=8cda84",
+            "openGraph": "https://cdn.dexscreener.com/token-images/og/ethereum/0xb50d65c460dd63c865e92c61df13a47dec24f4df?timestamp=1748341200000",
+            "websites": [
+                {
+                    "label": "Docs",
+                    "url": "https://youtu.be/htS23OHXa44?si=dbPLANc98DLM_xZh"
+                },
+                {
+                    "label": "bt21",
+                    "url": "https://www.bt21.com/BT21BABY"
+                }
+            ],
+            "socials": [
+                {
+                    "type": "twitter",
+                    "url": "https://x.com/shookyoneth"
+                },
+                {
+                    "type": "telegram",
+                    "url": "https://t.me/shookyoneth"
+                }
+            ]
+        }
+    },
+    {
+        "chainId": "solana",
+        "dexId": "pumpswap",
+        "url": "https://dexscreener.com/solana/awzplfdbetddbbwgheinbtfawajfamnkarjxsj8kawjr",
+        "pairAddress": "AwzpLFDbeTdDbBwGheinbtfawaJFamnkArjXSj8kAwjR",
+        "baseToken": {
+            "address": "52pSktR93nk4rFVPTWa6CWwfFEt2gwrzyerkRcvQpump",
+            "name": "y'all really buy any orange coin",
+            "symbol": "anycoin"
+        },
+        "quoteToken": {
+            "address": "So11111111111111111111111111111111111111112",
+            "name": "Wrapped SOL",
+            "symbol": "SOL"
+        },
+        "priceNative": "0.00000004306",
+        "priceUsd": "0.000007580",
+        "txns": {
+            "m5": {
+                "buys": 272,
+                "sells": 337
+            },
+            "h1": {
+                "buys": 2167,
+                "sells": 2087
+            },
+            "h6": {
+                "buys": 2167,
+                "sells": 2087
+            },
+            "h24": {
+                "buys": 2167,
+                "sells": 2087
+            }
+        },
+        "volume": {
+            "h24": 287830.69,
+            "h6": 287830.69,
+            "h1": 287830.69,
+            "m5": 22440.6
+        },
+        "priceChange": {
+            "m5": -70.2,
+            "h1": -89.54,
+            "h6": -89.54,
+            "h24": -89.54
+        },
+        "liquidity": {
+            "usd": 9914.48,
+            "base": 653181930,
+            "quote": 28.1974
+        },
+        "fdv": 7580,
+        "marketCap": 7580,
+        "pairCreatedAt": 1748340021000,
+        "info": {
+            "imageUrl": "https://dd.dexscreener.com/ds-data/tokens/solana/52pSktR93nk4rFVPTWa6CWwfFEt2gwrzyerkRcvQpump.png?key=01fd87",
+            "header": "https://dd.dexscreener.com/ds-data/tokens/solana/52pSktR93nk4rFVPTWa6CWwfFEt2gwrzyerkRcvQpump/header.png?key=01fd87",
+            "openGraph": "https://cdn.dexscreener.com/token-images/og/solana/52pSktR93nk4rFVPTWa6CWwfFEt2gwrzyerkRcvQpump?timestamp=1748341200000",
+            "websites": [],
+            "socials": [
+                {
+                    "type": "twitter",
+                    "url": "https://x.com/i/communities/1927296870839136300"
+                }
+            ]
+        },
+        "boosts": {
+            "active": 10
+        }
+    }
+]

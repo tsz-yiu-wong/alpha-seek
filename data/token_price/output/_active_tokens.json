@@ -1,0 +1,318 @@
+[
+    {
+        "token_address": "2nZ9nrMibn14ri4s2hZi8yxyYAW1iwUaUge5tTDipump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "bbqzw3kK31qg9vnW4SXasJQhathQeV5Tj18BMuhpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "7ZPxiRrue2Wd6xJKZ57U7pSgTuK5z3h9GkgiwgYkpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "mWWBdfYLzksYxL3j4DN5wS3T7rxPpGbaNDmgYD6pump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "6Z2b8Q7AwzFKAviz2oFKCXywLiHekQLZiEHM9Q9vpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "6GAnZtHCxUQMZWNtCEPDvemEc4XVxdttLwsBe4pEbvxx",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "0x9c84D78839ADe4d3211a9b5fa73Ef079eca4f739",
+        "chain_id": "hyperevm"
+    },
+    {
+        "token_address": "0xB50D65c460dd63C865e92C61dF13a47DEc24F4df",
+        "chain_id": "ethereum"
+    },
+    {
+        "token_address": "52pSktR93nk4rFVPTWa6CWwfFEt2gwrzyerkRcvQpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "BCX7XEM4SJPB2eoqBrBHYhWFEkLPWRcy6gKrawjgpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "5bsfJVRiWEVZ7RD4XEn3U816gPbU4vihPhLmXDJpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "A5CjbqrZd71ds27pJhSFEhUrdz1siao8E8UUdob4pump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "6Neft4334Hqi2ak59K3SActWD3jWuhLvXuFHhGTpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "0xE4e30072C5eFaCf997CcF6f434D839461Aacfd26",
+        "chain_id": "ethereum"
+    },
+    {
+        "token_address": "AC5PJ6NTest3EFb5kKd5trBrgTL7uv98uQop2y233kvD",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "0x7aB7Da9C277dF62247341D25de9416489287E378",
+        "chain_id": "ethereum"
+    },
+    {
+        "token_address": "A4c9n61xrbPSUkwXXGPMKuVALAQ3cweZ7PcQpvokpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "41FGD58phka9cCBadmie4Y9vLExtoYYZQCucLTwFpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "0x0961e9A744C8a1dd19f6b26CD0d0DC4C6077FE8d",
+        "chain_id": "pulsechain"
+    },
+    {
+        "token_address": "0x11735dBd0B97CfA7Accf47d005673BA185f7fd49",
+        "chain_id": "hyperevm"
+    },
+    {
+        "token_address": "0x8bbf486a9F2b535C4EF09C665a807859CfE92d83",
+        "chain_id": "ethereum"
+    },
+    {
+        "token_address": "CFviFB97sfXYgzbCEomyi4XjvzAvw2bYCbbMfAcopump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "5S1EyF9tKjYYevNgavbuQ2tBVyD5QDuKAZ4ZKt2CpTb6",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "5YPRX5QWfTzfNQNPKJyUMGMVdNCu4vkPr2fjbwDrpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "EN1oJu5JGmxra9jdzHHAnink2sgz5V5v5HrW2L3Rpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "AFCWT9TWktpjYZgYBhFvdkMAHC4nEXKnPqVwqNdqpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "0x320daf47bade5fcfccb293e4927698dd2567c27a",
+        "chain_id": "hyperevm"
+    },
+    {
+        "token_address": "Df8aH8jBX2EcHAsVty6gTTAgpfeBabtcSiiRbdHpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "8cvgZw8suofd6i94o4JrLwResXZ9dTXdyARWTvhypump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "Fm5ayhPnjq74W12Jono35NK5Kj3BwAiUTNdG3nK39ngH",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "gorkrgj6k4K449Qa4eF1NaWC5cNLQtMsVEikhpGn7fC",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "J5yoLz7st9DEn4SVjGTEP6TPaZgojsjf9AgWwyPDpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "A8YHuvQBMAxXoZAZE72FyC8B7jKHo8RJyByXRRffpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "A15y4AUrNwxZu9qSiXuZjVsMDLUGEEGaAc6mEAfSpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "0x15243C1D2F23a1b7cc85B67bC1F5d578EB3Bf3E5",
+        "chain_id": "base"
+    },
+    {
+        "token_address": "Ec2XMdQpLcHnBjaEB5CzeshprAnRdMtHMAVPWmcwTxxA",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "9S9n6q1zZ6Z8GdCG1Rd1ubXUri4CEVFF7gMH2zj9pump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "0xFcEB0b02c8972977FaC85C476d4354F501B9c6e4",
+        "chain_id": "hyperevm"
+    },
+    {
+        "token_address": "0xb6d369FAf21CDa1b281013EA83BAdF6Bb26B884d",
+        "chain_id": "ethereum"
+    },
+    {
+        "token_address": "7Gg6J1nkHLVV2TMqhVGHS1BrYycDmLoux9R3GSy2pump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "Fui3XmR1xcbdSMziZ4yqkSrga7X2pSPymUXbY6K3pump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "CgzuFAhXZxfj2jnDJ3YMcqZnDueztL3mzzEW4x2Vpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "4fJVpHzgaQ5F5BmFWpLrVf7zdmkYJccgcz6XMQo1pump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "GCKTFLxkMeUTUbuQM1k6f1cy4o4tC2V13ye2ebL3p52r",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "LZboYF8CPRYiswZFLSQusXEaMMwMxuSA5VtjGPtpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "3Qq4cB3yyNcHsQeBJ1Ro3FGdPvPhqzYLNDQgMoF9Yyqr",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "EGFd5J14KUszGFpu7wj9gXbvavKEaqHkQXVsm26Kbonk",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "CB9dDufT3ZuQXqqSfa1c5kY935TEreyBw9XJXxHKpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "43YakhC3TcSuTgSXnxFgw8uKL8VkuLuFa4M6Bninpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "2Vi4y2U6MNteLPkppNsYSRTLpjPmQE7bahx1B9aHHwBF",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "0x002b68e699ab6CedC81E74e47F8A511DAC6eCB11",
+        "chain_id": "ethereum"
+    },
+    {
+        "token_address": "F18VAZ7f4djGgWTkXDPLvrw5K5abAehDKGAPWxPqmePs",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "0x6AAbBCE679815974580dE2875a22AfF3dEba1bA8",
+        "chain_id": "ethereum"
+    },
+    {
+        "token_address": "0x9017839991a2924A0C0599F9326B405519974fb6",
+        "chain_id": "ethereum"
+    },
+    {
+        "token_address": "KohRCAKjSkFMWjp3W96AkHFF4LaixHNKNat1aqqpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "0x6dA876bEA64e39425CbfAf0DBf6abFF380Bd650e",
+        "chain_id": "ethereum"
+    },
+    {
+        "token_address": "2XfZeoZiv1YtmXahES3STYvVNZySyiFX9P218biCpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "0x0de2af19be6530da74bac13d91ccf90b263b96bf",
+        "chain_id": "ethereum"
+    },
+    {
+        "token_address": "Q7k5VFco56ajS1avTA9i4UZe23QiocHDYmPsej9pump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "8bqVBCy267GrVmWffMrM2iJBuQTJ2w5WTiedafNkmoon",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "moonXDVYo72hDfxREGiz12Np8EpcRHfNXXW9URYatfq",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "9gjmbjMMJkdwpwdFsY9w2wmXuqAtvWNmyMgBGqDfpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "J3NrhzUeKBSA3tJQjNq77zqpWJNz3FS9TrX7H7SLKcom",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "5gsR4Le3sbSrWUo2wyA8fdqu5SUKTTFeYiGb2NGkpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "AwaJUbLoAFQ3XzG9MuQjYP5oeqqrGN2LEssGQgUYpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "Bhu2wBWxfWkRJ6pFn5NodnEvMCqj9DLfCU5qMvt7pump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "3V2cC4xAcWvH5t74iKsNJqhpZEudPHCYxxKkpKoCpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "GoN2Nz4Rb1G9kyQLjUvRGbtUhRTpPJ38V2ua5GLRpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "4CoTCzobYt38zVbSieZxcmz2CCs8kmZJ6wnbj8HWocto",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "0xEEf8E84e72fa65F4dd101231DAcB322De8064444",
+        "chain_id": "bsc"
+    },
+    {
+        "token_address": "62dKknQokRHSaYDZRKRYd2kU6jVsv9fSmSxGZ1s4pump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "B7NexcrLZYVCbFHuZyHjEkwXM2gWrF4U17JfMWzzpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "94NWecK6uMuwLkpBz87wH3Hs13ziPAQ7z8ped1UDpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "G4PLXS424HxKWoehEUzyLsR8QhHSTVuLgFbHUh8spump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "5w68xqRpVFqi7hCXuN7QLc5ReLv1PfpmT9TVm11Cpump",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "FH6jc68WzeAUXKp6uDg9QPciTeU75o32xFDzKLzmbonk",
+        "chain_id": "solana"
+    },
+    {
+        "token_address": "0x758309c0d1342e0d5a778b83cdcebaa3f4554444",
+        "chain_id": "bsc"
+    },
+    {
+        "token_address": "0x4D4574f50dd8B9dBe623cF329DCc78D76935E610",
+        "chain_id": "ethereum"
+    },
+    {
+        "token_address": "4sprFJWuS57qEvmCb5nGfUWQkHstfsf34k2SHUEjsoLo",
+        "chain_id": "solana"
+    }
+]
