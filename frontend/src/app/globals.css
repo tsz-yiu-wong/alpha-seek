@@ -1,0 +1,166 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  /* 字体系统 */
+  --font-heading: var(--font-space-grotesk);      /* 标题和UI界面字体 */
+  --font-data: var(--font-ibm-plex-mono);         /* 数据展示字体 */
+  --font-brand: var(--font-maple-mono);           /* 品牌字体（侧边栏、Logo） */
+
+  /* 颜色系统 */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-positive: var(--positive-foreground);
+  --color-negative: var(--negative-foreground);
+
+  /* 圆角系统 */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 0.625rem;
+
+  /* 亮色主题 */
+  --background: #F5F7FA;
+  --foreground: #161A20;
+  --card: #FFFFFF;
+  --card-foreground: #161A20;
+  --primary: #14B8A6;
+  --primary-foreground: #FFFFFF;
+  --secondary: #525D6D;
+  --secondary-foreground: #FFFFFF;
+  --accent: #14B8A6;
+  --accent-foreground: #FFFFFF;
+  --border: #D8DFE9;
+  --positive-foreground: oklch(0.6 0.15 135);
+  --negative-foreground: oklch(0.577 0.245 27.325);
+
+  /* 渐变色 */
+  --accent-gradient-start: #34D399;
+  --accent-gradient-end: #14B8A6;
+}
+
+.dark {
+  /* 暗色主题 */
+  --background: #0A0D14;
+  --foreground: #E1E8F0;
+  --card: #141923;
+  --card-foreground: #E1E8F0;
+  --primary: #14B8A6;
+  --primary-foreground: #FFFFFF;
+  --secondary: #7B889A;
+  --secondary-foreground: #FFFFFF;
+  --accent: #14B8A6;
+  --accent-foreground: #FFFFFF;
+  --border: #2A3140;
+  --positive-foreground: #00CC66;
+  --negative-foreground: #FF4444;
+  --bg-surface: #141923;
+
+  /* 渐变色 */
+  --accent-gradient-start: #34D399;
+  --accent-gradient-end: #14B8A6;
+}
+
+@layer base {
+  /* 基础样式重置 */
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  /* 基础排版 */
+  body {
+    @apply bg-background text-foreground font-heading;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading font-bold;
+  }
+
+  /* 数据展示 */
+  .font-data {
+    @apply font-data;
+  }
+
+  /* 品牌元素 */
+  .font-brand {
+    @apply font-brand;
+  }
+
+  /* 渐变背景 */
+  .bg-primary,
+  .bg-primary[aria-selected="true"],
+  [data-state="active"].bg-primary {
+    background-image: linear-gradient(in oklch to right, 
+      var(--accent-gradient-start),
+      var(--accent-gradient-end)
+    ) !important;
+    background-color: var(--primary) !important;
+    color: var(--primary-foreground) !important;
+    font-weight: bold !important;
+  }
+
+  .bg-accent,
+  .bg-accent[aria-selected="true"],
+  [data-state="active"].bg-accent {
+    background-image: linear-gradient(in oklch to right, 
+      var(--accent-gradient-start),
+      var(--accent-gradient-end)
+    ) !important;
+    background-color: var(--accent) !important;
+    color: var(--accent-foreground) !important;
+    font-weight: bold !important;
+  }
+
+  /* 交互状态 */
+  .hover\:bg-primary:hover,
+  .active\:bg-primary:active,
+  .focus\:bg-primary:focus {
+    background: oklch(from var(--accent-gradient-start) l c h / 15%) !important;
+    color: var(--text-primary) !important;
+  }
+
+  .hover\:bg-accent:hover,
+  .active\:bg-accent:active,
+  .focus\:bg-accent:focus {
+    background: oklch(from var(--accent-gradient-end) l c h / 15%) !important;
+    color: var(--text-primary) !important;
+  }
+
+  /* 选中/高亮文字 */
+  ::selection {
+    background: linear-gradient(in oklch to right,
+      oklch(from var(--accent-gradient-start) l c h / 20%),
+      oklch(from var(--accent-gradient-end) l c h / 20%)
+    );
+    color: var(--foreground);
+  }
+
+  ::-moz-selection {
+    background: linear-gradient(in oklch to right,
+      oklch(from var(--accent-gradient-start) l c h / 20%),
+      oklch(from var(--accent-gradient-end) l c h / 20%)
+    );
+    color: var(--foreground);
+  }
+}
+
+/* .font-luckiestGuy 类将被移除，因此这里留空表示删除 */
