@@ -432,7 +432,7 @@ export default function DashboardPage() {
 
   // 修改排序逻辑
   const mainCoinsSorted = useMemo(() => {
-    let sorted = [...tokenData.mainCoins];
+    const sorted = [...tokenData.mainCoins];
     if (sortColumn && sortDirection) {
       sorted.sort((a, b) => {
         const aValue = a[sortColumn as keyof latest_main_coins_data];
