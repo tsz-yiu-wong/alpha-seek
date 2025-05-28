@@ -107,6 +107,10 @@ interface TokenDataState {
   rawMemeCoinPairs: latest_meme_coins_data[];
 }
 
+// 添加排序状态类型
+type SortDirection = 'asc' | 'desc' | null;
+type SortColumn = string | null;
+
 // 修改 SupabaseRealtimePayload 类型
 type SupabaseRealtimePayload<T> = {
   eventType: 'INSERT' | 'UPDATE' | 'DELETE';
@@ -162,6 +166,8 @@ export default function DashboardPage() {
   const [mainPage, setMainPage] = useState(1);
   const mainPageSize = 30;
   const mainTableRef = useRef<HTMLDivElement>(null);
+  const [sortColumn, setSortColumn] = useState<SortColumn>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
 
   const formatUTCDate = (date: Date) => {
     const year = date.getUTCFullYear();
@@ -407,14 +413,67 @@ export default function DashboardPage() {
 
   useEffect(() => { setMemePage(1); setMainPage(1); }, [selectedChain]);
 
+  // 修改排序处理函数
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      if (sortDirection === 'desc') {
+        setSortDirection('asc');
+      } else if (sortDirection === 'asc') {
+        setSortColumn(null);
+        setSortDirection(null);
+      } else {
+        setSortDirection('desc');
+      }
+    } else {
+      setSortColumn(column);
+      setSortDirection('desc');
+    }
+  };
+
+  // 修改排序逻辑
   const mainCoinsSorted = useMemo(() => {
-    return [...tokenData.mainCoins].sort((a, b) => (b.market_cap || 0) - (a.market_cap || 0));
-  }, [tokenData.mainCoins]);
+    let sorted = [...tokenData.mainCoins];
+    if (sortColumn && sortDirection) {
+      sorted.sort((a, b) => {
+        const aValue = a[sortColumn as keyof latest_main_coins_data];
+        const bValue = b[sortColumn as keyof latest_main_coins_data];
+        
+        if (aValue === null && bValue === null) return 0;
+        if (aValue === null) return sortDirection === 'asc' ? -1 : 1;
+        if (bValue === null) return sortDirection === 'asc' ? 1 : -1;
+        
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+          return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+        }
+        
+        return 0;
+      });
+    }
+    return sorted;
+  }, [tokenData.mainCoins, sortColumn, sortDirection]);
 
   const memeCoinsPaged = useMemo(() => {
-    const all = tokenData.processedMemeTokensByChain[selectedChain as 'solana' | 'bsc' | 'base'] || [];
+    let all = tokenData.processedMemeTokensByChain[selectedChain as 'solana' | 'bsc' | 'base'] || [];
+    
+    if (sortColumn && sortDirection) {
+      all = [...all].sort((a, b) => {
+        const aValue = a.selectedPairData[sortColumn as keyof latest_meme_coins_data];
+        const bValue = b.selectedPairData[sortColumn as keyof latest_meme_coins_data];
+        
+        if (aValue === null && bValue === null) return 0;
+        if (aValue === null) return sortDirection === 'asc' ? -1 : 1;
+        if (bValue === null) return sortDirection === 'asc' ? 1 : -1;
+        
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+          return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+        }
+        
+        return 0;
+      });
+    }
+    
     return all.slice(0, memePage * memePageSize);
-  }, [tokenData.processedMemeTokensByChain, selectedChain, memePage, memePageSize]);
+  }, [tokenData.processedMemeTokensByChain, selectedChain, memePage, memePageSize, sortColumn, sortDirection]);
 
   const mainCoinsPaged = useMemo(() => {
     return mainCoinsSorted.slice(0, mainPage * mainPageSize);
@@ -488,6 +547,16 @@ export default function DashboardPage() {
     };
   }
 
+  // 添加排序指示器组件
+  const SortIndicator = ({ column }: { column: string }) => {
+    if (sortColumn !== column) return null;
+    return (
+      <span className="ml-1">
+        {sortDirection === 'asc' ? '↑' : '↓'}
+      </span>
+    );
+  };
+
   return (
     <div className="container py-5 mx-auto">
       <h1 className="text-3xl font-heading font-bold mb-2">Token Dashboard</h1>
@@ -551,33 +620,143 @@ export default function DashboardPage() {
                 {selectedChain === 'main' ? (
                   <>
                     <TableHead className="sticky left-0 bg-card dark:bg-[var(--bg-surface)] z-30 w-[200px] font-heading pl-4">Token</TableHead>
-                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Price</TableHead>
-                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">1h Change</TableHead>
-                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">24h Change</TableHead>
-                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">7d Change</TableHead>
-                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">24h Volume</TableHead>
-                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Market Cap</TableHead>
-                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Dominance</TableHead>
+                    <TableHead 
+                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('price_usd')}
+                    >
+                      Price <SortIndicator column="price_usd" />
+                    </TableHead>
+                    <TableHead 
+                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('percent_change_1h')}
+                    >
+                      1h Change <SortIndicator column="percent_change_1h" />
+                    </TableHead>
+                    <TableHead 
+                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('percent_change_24h')}
+                    >
+                      24h Change <SortIndicator column="percent_change_24h" />
+                    </TableHead>
+                    <TableHead 
+                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('percent_change_7d')}
+                    >
+                      7d Change <SortIndicator column="percent_change_7d" />
+                    </TableHead>
+                    <TableHead 
+                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('volume_24h')}
+                    >
+                      24h Volume <SortIndicator column="volume_24h" />
+                    </TableHead>
+                    <TableHead 
+                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('market_cap')}
+                    >
+                      Market Cap <SortIndicator column="market_cap" />
+                    </TableHead>
+                    <TableHead 
+                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('market_cap_dominance')}
+                    >
+                      Dominance <SortIndicator column="market_cap_dominance" />
+                    </TableHead>
                   </>
                 ) : (
                   <>
                     <TableHead className="sticky left-0 bg-card dark:bg-[var(--bg-surface)] z-30 w-[200px] font-heading pl-4">Token</TableHead>
                     <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">DEX</TableHead>
-                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Price</TableHead>
-                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">5m Change</TableHead>
-                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">1h Change</TableHead>
-                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">6h Change</TableHead>
-                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">24h Change</TableHead>
-                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">5m Volume</TableHead>
-                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">1h Volume</TableHead>
-                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">6h Volume</TableHead>
-                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">24h Volume</TableHead>
-                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">5m Txns (B/S)</TableHead>
-                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">1h Txns (B/S)</TableHead>
-                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">6h Txns (B/S)</TableHead>
-                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">24h Txns (B/S)</TableHead>
-                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Liquidity</TableHead>
-                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Market Cap</TableHead>
+                    <TableHead 
+                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('price_usd')}
+                    >
+                      Price <SortIndicator column="price_usd" />
+                    </TableHead>
+                    <TableHead 
+                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('percent_change_5m')}
+                    >
+                      5m Change <SortIndicator column="percent_change_5m" />
+                    </TableHead>
+                    <TableHead 
+                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('percent_change_1h')}
+                    >
+                      1h Change <SortIndicator column="percent_change_1h" />
+                    </TableHead>
+                    <TableHead 
+                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('percent_change_6h')}
+                    >
+                      6h Change <SortIndicator column="percent_change_6h" />
+                    </TableHead>
+                    <TableHead 
+                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('percent_change_24h')}
+                    >
+                      24h Change <SortIndicator column="percent_change_24h" />
+                    </TableHead>
+                    <TableHead 
+                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('volume_5m')}
+                    >
+                      5m Volume <SortIndicator column="volume_5m" />
+                    </TableHead>
+                    <TableHead 
+                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('volume_1h')}
+                    >
+                      1h Volume <SortIndicator column="volume_1h" />
+                    </TableHead>
+                    <TableHead 
+                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('volume_6h')}
+                    >
+                      6h Volume <SortIndicator column="volume_6h" />
+                    </TableHead>
+                    <TableHead 
+                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('volume_24h')}
+                    >
+                      24h Volume <SortIndicator column="volume_24h" />
+                    </TableHead>
+                    <TableHead 
+                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('txns_buys_5m')}
+                    >
+                      5m Txns (B/S) <SortIndicator column="txns_buys_5m" />
+                    </TableHead>
+                    <TableHead 
+                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('txns_buys_1h')}
+                    >
+                      1h Txns (B/S) <SortIndicator column="txns_buys_1h" />
+                    </TableHead>
+                    <TableHead 
+                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('txns_buys_6h')}
+                    >
+                      6h Txns (B/S) <SortIndicator column="txns_buys_6h" />
+                    </TableHead>
+                    <TableHead 
+                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('txns_buys_24h')}
+                    >
+                      24h Txns (B/S) <SortIndicator column="txns_buys_24h" />
+                    </TableHead>
+                    <TableHead 
+                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('liquidity_usd')}
+                    >
+                      Liquidity <SortIndicator column="liquidity_usd" />
+                    </TableHead>
+                    <TableHead 
+                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('market_cap')}
+                    >
+                      Market Cap <SortIndicator column="market_cap" />
+                    </TableHead>
                   </>
                 )}
               </TableRow>
@@ -607,12 +786,12 @@ export default function DashboardPage() {
                               href={`https://coinmarketcap.com/currencies/${token.slug}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="font-data font-bold truncate block hover:text-primary hover:underline transition-colors ml-1"
+                              className="font-data font-bold truncate block hover:text-primary hover:underline transition-colors ml-1 max-w-[150px]"
                               title={token.name}
                             >
                               {token.name}
                             </a>
-                            <span className="text-xs text-muted-foreground truncate block ml-1">{token.symbol}</span>
+                            <span className="text-xs text-muted-foreground truncate block ml-1 max-w-[150px]">{token.symbol}</span>
                           </div>
                         </div>
                       </TableCell>
