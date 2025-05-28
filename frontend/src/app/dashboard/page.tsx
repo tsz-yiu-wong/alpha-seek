@@ -448,6 +448,9 @@ export default function DashboardPage() {
         
         return 0;
       });
+    } else {
+      // 默认按 id 升序排序
+      sorted.sort((a, b) => a.id - b.id);
     }
     return sorted;
   }, [tokenData.mainCoins, sortColumn, sortDirection]);
