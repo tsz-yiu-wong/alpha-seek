@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import {
   Table,
@@ -12,351 +12,700 @@ import {
 } from "@/components/ui/table";
 import Image from 'next/image';
 import { Button } from "@/components/ui/button";
-import { Copy } from "lucide-react";
-import { Toaster, toast } from "sonner";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { Toaster } from "sonner";
+import React from 'react';
 
-// 警告：这是一个占位符 TokenData 接口。
-// 您需要根据 'dex_solana_token_data' 表的实际列结构来更新此接口。
-interface dex_token_data {
-  id: number; // 主键
-  created_at: string; // timestamptz
-  token_address: string; // varchar
-  pair_address: string | null; // varchar
-  price_usd: number | null; // numeric
-  price_native: number | null; // numeric
-  price_change_5m: number | null; // numeric
-  price_change_1h: number | null; // numeric
-  price_change_6h: number | null; // numeric
-  price_change_24h: number | null; // numeric
-  txns_5m_buy: number | null; // int4
-  txns_5m_sell: number | null; // int4
-  txns_1h_buy: number | null; // int4
-  txns_1h_sell: number | null; // int4
-  txns_6h_buy: number | null; // int4
-  txns_6h_sell: number | null; // int4
-  txns_24h_buy: number | null; // int4
-  txns_24h_sell: number | null; // int4
-  volume_5m: number | null; // numeric
-  volume_1h: number | null; // numeric
-  volume_6h: number | null; // numeric
-  volume_24h: number | null; // numeric
-  liquidity_usd: number | null; // numeric
-  liquidity_base: number | null; // int8
-  liquidity_quote: number | null; // numeric
-  market_cap: number | null; // numeric
+interface latest_main_coins_data {
+  id: number;
+  created_at: string;
+  symbol: string;
+  slug: string;
+  name: string;
+  ucid: number;
+  price_usd: number | null;
+  percent_change_1h: number | null;
+  percent_change_24h: number | null;
+  percent_change_7d: number | null;
+  volume_24h: number | null;
+  volume_change_24h: number | null;
+  market_cap: number | null;
+  market_cap_dominance: number | null;
+  last_updated: string;
 }
 
-// 新增：dex_solana_token_info 表的接口定义
-// 假设的表结构，请根据实际情况调整
-interface DexSolanaTokenInfo {
-  pair_address: string; // 用于关联
-  chain_id: string | null; // text
-  dex_id: string | null; // text
-  url: string | null; // varchar
-  token_address: string | null; // varchar
-  token_name: string | null; // varchar
-  token_symbol: string | null; // varchar
-  token_icon_url: string | null; // varchar
-  token_websites: string | null; // jsonb
-  token_socials: string | null; // jsonb
-  quote_token_address: string | null; // varchar
-  quote_token_name: string | null; // varchar
-  quote_token_symbol: string | null; // varchar
+interface latest_meme_coins_data {
+  id: number;
+  token_symbol: string;
+  token_name: string;
+  chain_id: string;
+  token_address: string;
+  dex_id: string;
+  pair_address: string | null;
+  price_usd: number | null;
+  price_native: number | null;
+  percent_change_5m: number | null;
+  percent_change_1h: number | null;
+  percent_change_6h: number | null;
+  percent_change_24h: number | null;
+  txns_buys_5m: number | null;
+  txns_sells_5m: number | null;
+  txns_buys_1h: number | null;
+  txns_sells_1h: number | null;
+  txns_buys_6h: number | null;
+  txns_sells_6h: number | null;
+  txns_buys_24h: number | null;
+  txns_sells_24h: number | null;
+  volume_5m: number | null;
+  volume_1h: number | null;
+  volume_6h: number | null;
+  volume_24h: number | null;
+  liquidity_usd: number | null;
+  liquidity_base: number | null;
+  liquidity_quote: number | null;
+  last_updated: string;
+  is_active: boolean;
+  market_cap: number | null;
 }
 
-// 新增：合并后的数据结构
-interface CombinedTokenData extends dex_token_data {
-  info?: DexSolanaTokenInfo | null; // 从 dex_solana_token_info 获取的信息
+interface DexPairInfo {
+  dex_id: string;
+  pair_address: string;
+}
+
+interface token_info {
+  id: number;
+  chain_id: string;
+  token_address: string;
+  token_name: string;
+  token_symbol: string;
+  token_icon_url: string | null;
+  token_websites: string[] | null;
+  token_socials: string[] | null;
+  quote_token_address: string | null;
+  quote_token_name: string | null;
+  quote_token_symbol: string | null;
+  dex_pairs: DexPairInfo[] | null;
+}
+
+interface ProcessedMemeToken {
+  tokenInfo: token_info;
+  allPairData: latest_meme_coins_data[];
+  selectedPairData: latest_meme_coins_data;
+}
+
+type ChainType = 'main' | 'solana' | 'bsc' | 'base';
+
+interface TokenDataState {
+  mainCoins: latest_main_coins_data[];
+  processedMemeTokensByChain: {
+    solana: ProcessedMemeToken[];
+    bsc: ProcessedMemeToken[];
+    base: ProcessedMemeToken[];
+  };
+  rawTokenInfos: token_info[];
+  rawMemeCoinPairs: latest_meme_coins_data[];
+}
+
+// 修改 SupabaseRealtimePayload 类型
+type SupabaseRealtimePayload<T> = {
+  eventType: 'INSERT' | 'UPDATE' | 'DELETE';
+  new: T;
+  old: T;
+  schema: string;
+  table: string;
+};
+
+// 通用增量更新工具
+function updateOrAdd<T>(arr: T[], newItem: T, idField: keyof T): T[] {
+  let found = false;
+  const newList = arr.map(item => {
+    if (item[idField] === newItem[idField]) {
+      found = true;
+      return newItem;
+    }
+    return item;
+  });
+  if (!found) newList.push(newItem);
+  return newList;
+}
+
+// 类型守卫，判断 err 是否有 message 字段
+function isErrorWithMessage(e: unknown): e is { message: string } {
+  return (
+    typeof e === 'object' &&
+    e !== null &&
+    'message' in e &&
+    typeof (e as { message?: unknown }).message === 'string'
+  );
 }
 
 export default function DashboardPage() {
-  const [tokens, setTokens] = useState<CombinedTokenData[]>([]);
+  const [tokenData, setTokenData] = useState<TokenDataState>({
+    mainCoins: [],
+    processedMemeTokensByChain: {
+      solana: [],
+      bsc: [],
+      base: []
+    },
+    rawTokenInfos: [],
+    rawMemeCoinPairs: []
+  });
   const [error, setError] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
+  const [selectedChain, setSelectedChain] = useState<ChainType>('main');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [expandedTokenPairs, setExpandedTokenPairs] = useState<{ [key: string]: boolean }>({});
+  const [memePage, setMemePage] = useState(1);
+  const memePageSize = 30;
+  const memeTableRef = useRef<HTMLDivElement>(null);
+  const [mainPage, setMainPage] = useState(1);
+  const mainPageSize = 30;
+  const mainTableRef = useRef<HTMLDivElement>(null);
 
-  const handleCopy = async (text: string, tokenName?: string) => {
-    if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      toast.success(`${tokenName ? tokenName + " address" : "Token address"} copied!`);
-    } catch (err) {
-      console.error('Failed to copy text: ', err);
-      toast.error("Failed to copy address.");
-    }
+  const formatUTCDate = (date: Date) => {
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    const hours = String(date.getUTCHours()).padStart(2, '0');
+    const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} (UTC+0)`;
   };
 
-  useEffect(() => {
-    if (tokens.length > 0) {
-      const mostRecentDate = tokens.reduce((max, token) => {
-        const currentDate = new Date(token.created_at);
-        return currentDate > max ? currentDate : max;
-      }, new Date(0));
-
-      if (mostRecentDate.getTime() !== new Date(0).getTime()) {
-        const dateOptions: Intl.DateTimeFormatOptions = { year: 'numeric', month: '2-digit', day: '2-digit' };
-        const timeOptions: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
-
-        const datePart = mostRecentDate.toLocaleDateString('en-GB', dateOptions);
-        const timePart = mostRecentDate.toLocaleTimeString('en-GB', timeOptions);
-        setLastUpdatedAt(`${datePart} ${timePart}`);
-      }
-    } else {
-      setLastUpdatedAt(null);
-    }
-  }, [tokens]);
-
-  useEffect(() => {
-    const tokenDataTableName = 'dex_solana_token_data';
-    const tokenInfoTableName = 'dex_solana_token_info';
-    const channelName = `realtime-${tokenDataTableName}`;
-
-    const fetchTokenInfo = async (pairAddress: string): Promise<DexSolanaTokenInfo | null> => {
-      if (!pairAddress) return null;
-      try {
-        const { data, error } = await supabase
-          .from(tokenInfoTableName)
-          .select('*')
-          .eq('pair_address', pairAddress)
-          .maybeSingle();
-
-        if (error) {
-          console.warn(`Error fetching token info for ${pairAddress} from ${tokenInfoTableName}:`, error.message);
-          return null;
-        }
-        return data as DexSolanaTokenInfo;
-      } catch (e: any) {
-        console.error(`Exception fetching token info for ${pairAddress}:`, e.message);
-        return null;
-      }
+  const processAndSetTokenData = (
+    rawInfos: token_info[],
+    rawPairs: latest_meme_coins_data[],
+    mainCoinsData: latest_main_coins_data[]
+  ) => {
+    const newProcessedMemeTokensByChain: TokenDataState['processedMemeTokensByChain'] = {
+      solana: [],
+      bsc: [],
+      base: []
     };
+    rawInfos.forEach(info => {
+      if (!info.dex_pairs || info.dex_pairs.length === 0) return;
+      const relevantPairs = rawPairs.filter(pairData =>
+        info.dex_pairs!.some(dp => dp.pair_address === pairData.pair_address && pairData.chain_id === info.chain_id)
+      );
+      if (relevantPairs.length === 0) return;
+      const selectedPair = relevantPairs.reduce((max, pair) =>
+        (pair.liquidity_usd || 0) > (max.liquidity_usd || 0) ? pair : max,
+        relevantPairs[0]
+      );
+      const processedToken: ProcessedMemeToken = {
+        tokenInfo: info,
+        allPairData: relevantPairs,
+        selectedPairData: selectedPair
+      };
+      if (info.chain_id === 'solana') newProcessedMemeTokensByChain.solana.push(processedToken);
+      else if (info.chain_id === 'bsc') newProcessedMemeTokensByChain.bsc.push(processedToken);
+      else if (info.chain_id === 'base') newProcessedMemeTokensByChain.base.push(processedToken);
+    });
+    setTokenData(prevState => ({
+      ...prevState,
+      mainCoins: mainCoinsData,
+      processedMemeTokensByChain: newProcessedMemeTokensByChain,
+      rawTokenInfos: rawInfos,
+      rawMemeCoinPairs: rawPairs,
+    }));
+  };
 
-    const fetchInitialData = async () => {
-      setError(null);
-      const { data: tokenDataList, error: tokenDataError } = await supabase
-        .from(tokenDataTableName)
-        .select('*');
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [mainCoinsResponse, memePairsResponse, tokenInfosResponse] = await Promise.all([
+        supabase.from('latest_main_coins_data').select('*'),
+        supabase.from('latest_meme_coins_data').select('*'),
+        supabase.from('token_info').select('*')
+      ]);
 
-      if (tokenDataError) {
-        console.error('Error fetching initial data:', tokenDataError);
-        setError(`Failed to load initial data from ${tokenDataTableName}: ${tokenDataError.message}`);
-        setTokens([]);
-        return;
-      }
+      if (mainCoinsResponse.error) throw mainCoinsResponse.error;
+      if (memePairsResponse.error) throw memePairsResponse.error;
+      if (tokenInfosResponse.error) throw tokenInfosResponse.error;
 
-      if (tokenDataList) {
-        const combinedDataPromises = (tokenDataList as dex_token_data[]).map(async (token) => {
-          const info = token.pair_address ? await fetchTokenInfo(token.pair_address) : null;
-          return { ...token, info: info || undefined };
-        });
-        const resolvedCombinedData = await Promise.all(combinedDataPromises);
-        setTokens(resolvedCombinedData);
+      const mainCoinsData = mainCoinsResponse.data as latest_main_coins_data[];
+      const rawPairsData = memePairsResponse.data as latest_meme_coins_data[];
+      const rawInfosData = tokenInfosResponse.data as token_info[];
+      
+      processAndSetTokenData(rawInfosData, rawPairsData, mainCoinsData);
+
+      const lastUpdatedTimes = [
+        ...mainCoinsData.map(d => d.last_updated),
+        ...rawPairsData.map(d => d.last_updated),
+      ].filter(Boolean).map(d => new Date(d).getTime());
+
+      if (lastUpdatedTimes.length > 0) {
+        setLastUpdatedAt(formatUTCDate(new Date(Math.max(...lastUpdatedTimes))));
       } else {
-        setTokens([]);
+        setLastUpdatedAt(formatUTCDate(new Date()));
       }
-    };
 
-    fetchInitialData();
+    } catch (err: unknown) {
+      let message = 'Unknown error';
+      if (isErrorWithMessage(err)) {
+        message = err.message;
+      } else if (typeof err === 'string') {
+        message = err;
+      } else {
+        try {
+          message = JSON.stringify(err);
+        } catch {
+          // ignore
+        }
+      }
+      console.error('Error fetching data:', err, message);
+      setError(message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: tokenDataTableName },
-        async (payload) => {
-          console.log('Change received!', payload);
-          
-          let newRecord: dex_token_data | undefined;
-          let oldRecordId: number | undefined;
+  const updateTokenData = useCallback((
+    payload: SupabaseRealtimePayload<latest_main_coins_data | latest_meme_coins_data | token_info>,
+    type: 'main' | 'meme_pair' | 'token_info'
+  ) => {
+    setTokenData(prevData => {
+      let newRawTokenInfos = prevData.rawTokenInfos;
+      let newRawMemeCoinPairs = prevData.rawMemeCoinPairs;
+      let newMainCoins = prevData.mainCoins;
+      let newProcessedMemeTokensByChain = prevData.processedMemeTokensByChain;
 
-          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            newRecord = payload.new as dex_token_data;
-          } else if (payload.eventType === 'DELETE') {
-            const oldData = payload.old as Partial<dex_token_data> & { id?: number };
-            if (oldData && typeof oldData.id === 'number') {
-              oldRecordId = oldData.id;
-            } else {
-               console.warn('DELETE event received without old record ID. Full table refresh might be needed or check replica identity.');
-               fetchInitialData();
-               return;
+      if (type === 'main') {
+        const mainPayload = payload as SupabaseRealtimePayload<latest_main_coins_data>;
+        if (payload.eventType === 'DELETE') {
+          newMainCoins = prevData.mainCoins.filter(t => t.id !== mainPayload.old.id);
+        } else {
+          newMainCoins = updateOrAdd(prevData.mainCoins, mainPayload.new, 'id');
+        }
+      } else if (type === 'token_info') {
+        const tokenInfoPayload = payload as SupabaseRealtimePayload<token_info>;
+        if (payload.eventType === 'DELETE') {
+          newRawTokenInfos = prevData.rawTokenInfos.filter(t => t.id !== tokenInfoPayload.old.id);
+          const chain = tokenInfoPayload.old.chain_id as 'solana' | 'bsc' | 'base';
+          newProcessedMemeTokensByChain = {
+            ...prevData.processedMemeTokensByChain,
+            [chain]: prevData.processedMemeTokensByChain[chain].filter(t => t.tokenInfo.token_address !== tokenInfoPayload.old.token_address)
+          };
+        } else {
+          newRawTokenInfos = updateOrAdd(prevData.rawTokenInfos, tokenInfoPayload.new, 'id');
+          newProcessedMemeTokensByChain = updateProcessedMemeTokensByChain(
+            prevData.processedMemeTokensByChain,
+            tokenInfoPayload.new,
+            prevData.rawMemeCoinPairs
+          );
+        }
+      } else if (type === 'meme_pair') {
+        const memePairPayload = payload as SupabaseRealtimePayload<latest_meme_coins_data>;
+        if (payload.eventType === 'DELETE') {
+          newRawMemeCoinPairs = prevData.rawMemeCoinPairs.filter(p => p.pair_address !== memePairPayload.old.pair_address);
+          prevData.rawTokenInfos.forEach(info => {
+            if (info.dex_pairs?.some(dp => dp.pair_address === memePairPayload.old.pair_address)) {
+              newProcessedMemeTokensByChain = updateProcessedMemeTokensByChain(
+                newProcessedMemeTokensByChain,
+                info,
+                newRawMemeCoinPairs
+              );
             }
-          }
-
-          setTokens((prevTokens) => {
-            let updatedTokens = [...prevTokens];
-
-            if (payload.eventType === 'INSERT' && newRecord) {
-              if (!prevTokens.find(t => t.id === (newRecord as dex_token_data).id)) {
-                updatedTokens = [...prevTokens, { ...(newRecord as dex_token_data), info: undefined }];
-                if (newRecord.pair_address) {
-                    fetchTokenInfo(newRecord.pair_address).then(info => {
-                        setTokens(currentTokens => currentTokens.map(t => t.id === (newRecord as dex_token_data).id ? {...t, info: info || undefined} : t));
-                    });
-                }
-              }
-            } else if (payload.eventType === 'UPDATE' && newRecord) {
-              updatedTokens = prevTokens.map(token => {
-                if (token.id === (newRecord as dex_token_data).id) {
-                  const updatedToken = { ...token, ...(newRecord as dex_token_data) };
-                   if (newRecord.pair_address && newRecord.pair_address !== token.pair_address) {
-                        fetchTokenInfo(newRecord.pair_address).then(info => {
-                            setTokens(currentTokens => currentTokens.map(t => t.id === (newRecord as dex_token_data).id ? {...t, info: info || undefined} : t));
-                        });
-                    } else if (newRecord.pair_address && !token.info) {
-                        fetchTokenInfo(newRecord.pair_address).then(info => {
-                            setTokens(currentTokens => currentTokens.map(t => t.id === (newRecord as dex_token_data).id ? {...t, info: info || undefined} : t));
-                        });
-                    }
-                  return updatedToken;
-                }
-                return token;
-              });
-            } else if (payload.eventType === 'DELETE' && oldRecordId !== undefined) {
-              updatedTokens = prevTokens.filter(token => token.id !== oldRecordId);
+          });
+        } else {
+          newRawMemeCoinPairs = updateOrAdd(prevData.rawMemeCoinPairs, memePairPayload.new, 'pair_address');
+          prevData.rawTokenInfos.forEach(info => {
+            if (info.dex_pairs?.some(dp => dp.pair_address === memePairPayload.new.pair_address)) {
+              newProcessedMemeTokensByChain = updateProcessedMemeTokensByChain(
+                newProcessedMemeTokensByChain,
+                info,
+                newRawMemeCoinPairs
+              );
             }
-            return updatedTokens;
           });
         }
-      )
-      .subscribe((status, err) => {
-        if (err) {
-          console.error('Subscription error:', err);
-          setError(`Subscription to ${tokenDataTableName} failed: ${err ? err.message : 'Unknown error'}`);
-        }
-        console.log(`Supabase subscription status to ${tokenDataTableName}:`, status);
-      });
+      }
+      return {
+        ...prevData,
+        mainCoins: newMainCoins,
+        processedMemeTokensByChain: newProcessedMemeTokensByChain,
+        rawTokenInfos: newRawTokenInfos,
+        rawMemeCoinPairs: newRawMemeCoinPairs,
+      };
+    });
+    setLastUpdatedAt(formatUTCDate(new Date()));
+  }, []);
+
+  useEffect(() => {
+    let mainCoinsChannel: ReturnType<typeof supabase.channel> | null = null;
+    let memePairsChannel: ReturnType<typeof supabase.channel> | null = null;
+    let tokenInfoChannel: ReturnType<typeof supabase.channel> | null = null;
+
+    const setupChannels = () => {
+      if (mainCoinsChannel) supabase.removeChannel(mainCoinsChannel);
+      if (memePairsChannel) supabase.removeChannel(memePairsChannel);
+      if (tokenInfoChannel) supabase.removeChannel(tokenInfoChannel);
+
+      mainCoinsChannel = supabase.channel('latest_main_coins_data_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'latest_main_coins_data' },
+          (payload) => { 
+            const typedPayload = payload as unknown as SupabaseRealtimePayload<latest_main_coins_data>;
+            updateTokenData(typedPayload, 'main'); 
+          })
+        .subscribe();
+
+      memePairsChannel = supabase.channel('latest_meme_coins_data_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'latest_meme_coins_data' },
+          (payload) => { 
+            const typedPayload = payload as unknown as SupabaseRealtimePayload<latest_meme_coins_data>;
+            updateTokenData(typedPayload, 'meme_pair'); 
+          })
+        .subscribe();
+      
+      tokenInfoChannel = supabase.channel('token_info_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'token_info' },
+          (payload) => { 
+            const typedPayload = payload as unknown as SupabaseRealtimePayload<token_info>;
+            updateTokenData(typedPayload, 'token_info'); 
+          })
+        .subscribe();
+    };
+
+    fetchData();
+    setupChannels();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (mainCoinsChannel) supabase.removeChannel(mainCoinsChannel);
+      if (memePairsChannel) supabase.removeChannel(memePairsChannel);
+      if (tokenInfoChannel) supabase.removeChannel(tokenInfoChannel);
     };
-  }, []);
+  }, [fetchData, updateTokenData]);
+
+  useEffect(() => {
+    let el: HTMLDivElement | null = null;
+    let handleScroll: (() => void) | null = null;
+    if (selectedChain === 'main') {
+      handleScroll = () => {
+        el = mainTableRef.current;
+        if (!el) return;
+        if (el.scrollHeight - el.scrollTop - el.clientHeight < 100) {
+          setMainPage(page => page + 1);
+        }
+      };
+      el = mainTableRef.current;
+    } else {
+      handleScroll = () => {
+        el = memeTableRef.current;
+        if (!el) return;
+        if (el.scrollHeight - el.scrollTop - el.clientHeight < 100) {
+          setMemePage(page => page + 1);
+        }
+      };
+      el = memeTableRef.current;
+    }
+    if (el && handleScroll) el.addEventListener('scroll', handleScroll);
+    return () => { if (el && handleScroll) el.removeEventListener('scroll', handleScroll); };
+  }, [selectedChain]);
+
+  useEffect(() => { setMemePage(1); setMainPage(1); }, [selectedChain]);
+
+  const mainCoinsSorted = useMemo(() => {
+    return [...tokenData.mainCoins].sort((a, b) => (b.market_cap || 0) - (a.market_cap || 0));
+  }, [tokenData.mainCoins]);
+
+  const memeCoinsPaged = useMemo(() => {
+    const all = tokenData.processedMemeTokensByChain[selectedChain as 'solana' | 'bsc' | 'base'] || [];
+    return all.slice(0, memePage * memePageSize);
+  }, [tokenData.processedMemeTokensByChain, selectedChain, memePage, memePageSize]);
+
+  const mainCoinsPaged = useMemo(() => {
+    return mainCoinsSorted.slice(0, mainPage * mainPageSize);
+  }, [mainCoinsSorted, mainPage, mainPageSize]);
+
+  const getCurrentData = (): (latest_main_coins_data | ProcessedMemeToken)[] => {
+    if (selectedChain === 'main') {
+      return mainCoinsPaged;
+    } else {
+      return memeCoinsPaged;
+    }
+  };
+  
+  const formatNumber = (value: number | null | undefined, options: Intl.NumberFormatOptions = {}) => {
+    if (value == null) return 'N/A';
+    return value.toLocaleString(undefined, options);
+  };
+
+  const formatPercentage = (value: number | null | undefined) => {
+    if (value == null) return 'N/A';
+    return `${value.toFixed(2)}%`;
+  };
+
+  const getChangeColor = (value: number | null | undefined) => {
+    if (value == null) return '';
+    return value > 0 ? 'text-[var(--positive-foreground)]' : value < 0 ? 'text-[var(--negative-foreground)]' : '';
+  };
+
+  const toggleTokenPairsExpansion = (tokenAddress: string) => {
+    setExpandedTokenPairs(prev => ({
+      ...prev,
+      [tokenAddress]: !prev[tokenAddress]
+    }));
+  };
+
+  // 增量更新工具函数
+  function updateProcessedMemeTokensByChain(
+    prev: TokenDataState['processedMemeTokensByChain'],
+    updatedToken: token_info,
+    allPairs: latest_meme_coins_data[],
+  ) {
+    const chain = updatedToken.chain_id as 'solana' | 'bsc' | 'base';
+    const prevList = prev[chain] || [];
+    // 找到所有相关pair
+    const relevantPairs = allPairs.filter(pairData =>
+      updatedToken.dex_pairs?.some(dp => dp.pair_address === pairData.pair_address && pairData.chain_id === updatedToken.chain_id)
+    );
+    if (relevantPairs.length === 0) return prev;
+    const selectedPair = relevantPairs.reduce((max, pair) =>
+      (pair.liquidity_usd || 0) > (max.liquidity_usd || 0) ? pair : max,
+      relevantPairs[0]
+    );
+    const newToken: ProcessedMemeToken = {
+      tokenInfo: updatedToken,
+      allPairData: relevantPairs,
+      selectedPairData: selectedPair
+    };
+    // 替换或插入该token
+    let found = false;
+    const newList = prevList.map(t => {
+      if (t.tokenInfo.token_address === updatedToken.token_address) {
+        found = true;
+        return newToken;
+      }
+      return t;
+    });
+    if (!found) newList.push(newToken);
+    return {
+      ...prev,
+      [chain]: newList
+    };
+  }
 
   return (
     <div className="container py-5 mx-auto">
       <h1 className="text-3xl font-heading font-bold mb-2">Token Dashboard</h1>
-      {lastUpdatedAt && (
-        <p className="text-xs text-muted-foreground mb-4 font-data">Data updated at: {lastUpdatedAt}</p>
-      )}
       
+      <div className="flex gap-2 mb-4">
+        <Button
+          variant={selectedChain === 'main' ? 'default' : 'outline'}
+          onClick={() => setSelectedChain('main')}
+          className="font-data"
+          disabled={isLoading}
+        >
+          Main
+        </Button>
+        <Button
+          variant={selectedChain === 'solana' ? 'default' : 'outline'}
+          onClick={() => setSelectedChain('solana')}
+          className="font-data"
+          disabled={isLoading}
+        >
+          Solana
+        </Button>
+        <Button
+          variant={selectedChain === 'bsc' ? 'default' : 'outline'}
+          onClick={() => setSelectedChain('bsc')}
+          className="font-data"
+          disabled={isLoading}
+        >
+          BSC
+        </Button>
+        <Button
+          variant={selectedChain === 'base' ? 'default' : 'outline'}
+          onClick={() => setSelectedChain('base')}
+          className="font-data"
+          disabled={isLoading}
+        >
+          Base
+        </Button>
+      </div>
+
+      {lastUpdatedAt && (
+        <p className="text-xs text-muted-foreground mb-4 font-data">Last updated: {lastUpdatedAt}</p>
+      )}
+
       {error && (
         <div className="p-4 mb-4 text-sm rounded-lg bg-[var(--destructive-background)] text-[var(--destructive-foreground)]" role="alert">
           <span className="font-medium">Error!</span> {error}
         </div>
       )}
 
-      {tokens.length === 0 && !error && <p>Loading data or no tokens found...</p>}
-
-      {tokens.length > 0 && (
-        <div className="overflow-x-auto rounded-md border w-full 
-                        bg-card dark:bg-[var(--bg-surface)]
-                        dark:border-[var(--border-color)]
-                        shadow-[0_2px_8px_0_rgba(0,0,0,0.08)]
-                        dark:shadow-[0_2px_8px_0_rgba(255,255,255,0.08)]
-                        hover:shadow-[0_4px_12px_0_rgba(0,0,0,0.12)]
-                        dark:hover:shadow-[0_4px_12px_0_rgba(255,255,255,0.12)]
-                        transition-shadow duration-200">
+      {isLoading ? (
+        <div className="flex items-center justify-center p-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      ) : getCurrentData().length === 0 && !error ? (
+        <p>No tokens found...</p>
+      ) : (
+        <div ref={selectedChain === 'main' ? mainTableRef : memeTableRef} style={{ maxHeight: 700, overflowY: 'auto' }} className="overflow-x-auto rounded-md border w-full bg-card dark:bg-[var(--bg-surface)] dark:border-[var(--border-color)] shadow-[0_2px_8px_0_rgba(0,0,0,0.08)] dark:shadow-[0_2px_8px_0_rgba(255,255,255,0.08)] hover:shadow-[0_4px_12px_0_rgba(0,0,0,0.12)] dark:hover:shadow-[0_4px_12px_0_rgba(255,255,255,0.12)] transition-shadow duration-200">
           <Table>
             <TableHeader className="sticky top-0 bg-inherit z-10">
               <TableRow className="dark:border-[var(--border-color)]">
-                <TableHead className="sticky left-0 bg-card dark:bg-[var(--bg-surface)] z-10 w-[200px] font-heading">Token</TableHead>
-                <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Price</TableHead>
-                <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Price Change 5m</TableHead>
-                <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Price Change 1h</TableHead>
-                <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Price Change 6h</TableHead>
-                <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Price Change 24h</TableHead>
-                <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Volume 5m</TableHead>
-                <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Volume 1h</TableHead>
-                <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Volume 6h</TableHead>
-                <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Volume 24h</TableHead>
-                <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Txns 5m (B/S)</TableHead>
-                <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Txns 1h (B/S)</TableHead>
-                <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Txns 6h (B/S)</TableHead>
-                <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Txns 24h (B/S)</TableHead>
-                <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Liquidity USD</TableHead>
-                <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Market Cap</TableHead>
+                {selectedChain === 'main' ? (
+                  <>
+                    <TableHead className="sticky left-0 bg-card dark:bg-[var(--bg-surface)] z-30 w-[200px] font-heading pl-4">Token</TableHead>
+                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Price</TableHead>
+                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">1h Change</TableHead>
+                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">24h Change</TableHead>
+                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">7d Change</TableHead>
+                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">24h Volume</TableHead>
+                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Market Cap</TableHead>
+                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Dominance</TableHead>
+                  </>
+                ) : (
+                  <>
+                    <TableHead className="sticky left-0 bg-card dark:bg-[var(--bg-surface)] z-30 w-[200px] font-heading pl-4">Token</TableHead>
+                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">DEX</TableHead>
+                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Price</TableHead>
+                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">5m Change</TableHead>
+                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">1h Change</TableHead>
+                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">6h Change</TableHead>
+                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">24h Change</TableHead>
+                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">5m Volume</TableHead>
+                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">1h Volume</TableHead>
+                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">6h Volume</TableHead>
+                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">24h Volume</TableHead>
+                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">5m Txns (B/S)</TableHead>
+                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">1h Txns (B/S)</TableHead>
+                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">6h Txns (B/S)</TableHead>
+                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">24h Txns (B/S)</TableHead>
+                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Liquidity</TableHead>
+                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">Market Cap</TableHead>
+                  </>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {tokens.map((token) => (
-                <TableRow key={token.id} className="dark:border-[var(--border-color)]">
-                  <TableCell className="sticky left-0 bg-card dark:bg-[var(--bg-surface)] z-10">
-                    <div className="flex items-center space-x-3 w-[200px]">
-                      {token.info?.token_icon_url ? (
-                        <Image 
-                          src={token.info.token_icon_url} 
-                          alt={token.info.token_name ?? token.info.token_symbol ?? 'token icon'} 
-                          width={28}
-                          height={28} 
-                          className="rounded-full flex-shrink-0"
-                          unoptimized
-                        />
-                      ) : (
-                        <div 
-                          className="w-7 h-7 rounded-full bg-muted dark:bg-muted flex-shrink-0"
-                          title={token.info?.token_name ?? token.info?.token_symbol ?? 'token icon'}
-                        />
-                      )}
-                      <div className="flex flex-col items-start min-w-0 flex-1">
-                        <div className="flex items-center w-full">
-                          <div className="flex-1 min-w-0 flex items-center">
-                            {token.info?.token_address && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 p-0.5 text-muted-foreground hover:text-foreground cursor-pointer mr-0.5 flex-shrink-0"
-                                onClick={() => handleCopy(token.info!.token_address!, (token.info?.token_name ?? token.info?.token_symbol) || undefined)}
-                                title="Copy Token Address"
-                              >
-                                <Copy className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-                            {token.info?.url ? (
-                              <a 
-                                href={token.info.url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="font-data font-bold hover:underline text-[var(--link-foreground)] truncate block"
-                                title={token.info.token_name ?? token.info.token_symbol ?? 'Unknown Token'}
-                              >
-                                {token.info.token_name ?? token.info.token_symbol ?? 'Unknown Token'}
-                              </a>
-                            ) : (
-                              <span 
-                                className="font-data font-bold truncate block"
-                                title={token.info?.token_name ?? token.info?.token_symbol ?? 'Unknown Token'}
-                              >
-                                {token.info?.token_name ?? token.info?.token_symbol ?? 'Unknown Token'}
-                              </span>
-                            )}
+              {getCurrentData().map((item: latest_main_coins_data | ProcessedMemeToken) => {
+                if (selectedChain === 'main') {
+                  const token = item as latest_main_coins_data;
+                  return (
+                    <TableRow key={`main-${token.id}`} className="dark:border-[var(--border-color)]">
+                      <TableCell className="sticky left-0 bg-card dark:bg-[var(--bg-surface)] z-30 pl-4">
+                        <div className="flex items-center space-x-3 w-[200px]">
+                          {token.ucid && (
+                            <div className="w-7 h-7 rounded-full bg-muted dark:bg-muted flex-shrink-0 overflow-hidden">
+                              <Image
+                                src={`https://s2.coinmarketcap.com/static/img/coins/64x64/${token.ucid}.png`}
+                                alt={`${token.name} icon`}
+                                width={28}
+                                height={28}
+                                className="w-full h-full object-cover"
+                                unoptimized
+                              />
+                            </div>
+                          )}
+                          <div className="flex flex-col items-start min-w-0 flex-1">
+                            <a
+                              href={`https://coinmarketcap.com/currencies/${token.slug}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-data font-bold truncate block hover:text-primary hover:underline transition-colors ml-1"
+                              title={token.name}
+                            >
+                              {token.name}
+                            </a>
+                            <span className="text-xs text-muted-foreground truncate block ml-1">{token.symbol}</span>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-data">{token.price_usd?.toLocaleString(undefined, { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 6 }) ?? 'N/A'}</TableCell>
-                  <TableCell className={`font-data ${token.price_change_5m && token.price_change_5m > 0 ? 'text-[var(--positive-foreground)]' : token.price_change_5m && token.price_change_5m < 0 ? 'text-[var(--negative-foreground)]' : ''}`}>
-                    {token.price_change_5m != null ? `${token.price_change_5m.toFixed(2)}%` : 'N/A'}
-                  </TableCell>
-                  <TableCell className={`font-data ${token.price_change_1h && token.price_change_1h > 0 ? 'text-[var(--positive-foreground)]' : token.price_change_1h && token.price_change_1h < 0 ? 'text-[var(--negative-foreground)]' : ''}`}>
-                    {token.price_change_1h != null ? `${token.price_change_1h.toFixed(2)}%` : 'N/A'}
-                  </TableCell>
-                  <TableCell className={`font-data ${token.price_change_6h && token.price_change_6h > 0 ? 'text-[var(--positive-foreground)]' : token.price_change_6h && token.price_change_6h < 0 ? 'text-[var(--negative-foreground)]' : ''}`}>
-                    {token.price_change_6h != null ? `${token.price_change_6h.toFixed(2)}%` : 'N/A'}
-                  </TableCell>
-                  <TableCell className={`font-data ${token.price_change_24h && token.price_change_24h > 0 ? 'text-[var(--positive-foreground)]' : token.price_change_24h && token.price_change_24h < 0 ? 'text-[var(--negative-foreground)]' : ''}`}>
-                    {token.price_change_24h != null ? `${token.price_change_24h.toFixed(2)}%` : 'N/A'}
-                  </TableCell>
-                  <TableCell className="font-data">{token.volume_5m?.toLocaleString(undefined, {notation: 'compact', compactDisplay: 'short'}) ?? 'N/A'}</TableCell>
-                  <TableCell className="font-data">{token.volume_1h?.toLocaleString(undefined, {notation: 'compact', compactDisplay: 'short'}) ?? 'N/A'}</TableCell>
-                  <TableCell className="font-data">{token.volume_6h?.toLocaleString(undefined, {notation: 'compact', compactDisplay: 'short'}) ?? 'N/A'}</TableCell>
-                  <TableCell className="font-data">{token.volume_24h?.toLocaleString(undefined, {notation: 'compact', compactDisplay: 'short'}) ?? 'N/A'}</TableCell>
-                  <TableCell className="font-data">{`${token.txns_5m_buy ?? 0}/${token.txns_5m_sell ?? 0}`}</TableCell>
-                  <TableCell className="font-data">{`${token.txns_1h_buy ?? 0}/${token.txns_1h_sell ?? 0}`}</TableCell>
-                  <TableCell className="font-data">{`${token.txns_6h_buy ?? 0}/${token.txns_6h_sell ?? 0}`}</TableCell>
-                  <TableCell className="font-data">{`${token.txns_24h_buy ?? 0}/${token.txns_24h_sell ?? 0}`}</TableCell>
-                  <TableCell className="font-data">{token.liquidity_usd?.toLocaleString(undefined, { style: 'currency', currency: 'USD', notation: 'compact', compactDisplay: 'short' }) ?? 'N/A'}</TableCell>
-                  <TableCell className="font-data">{token.market_cap?.toLocaleString(undefined, { style: 'currency', currency: 'USD', notation: 'compact', compactDisplay: 'short' }) ?? 'N/A'}</TableCell>
-                </TableRow>
-              ))}
+                      </TableCell>
+                      <TableCell className="font-data">{formatNumber(token.price_usd, { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 6 })}</TableCell>
+                      <TableCell className={`font-data ${getChangeColor(token.percent_change_1h)}`}>{formatPercentage(token.percent_change_1h)}</TableCell>
+                      <TableCell className={`font-data ${getChangeColor(token.percent_change_24h)}`}>{formatPercentage(token.percent_change_24h)}</TableCell>
+                      <TableCell className={`font-data ${getChangeColor(token.percent_change_7d)}`}>{formatPercentage(token.percent_change_7d)}</TableCell>
+                      <TableCell className="font-data">{formatNumber(token.volume_24h, {notation: 'compact', compactDisplay: 'short'})}</TableCell>
+                      <TableCell className="font-data">{formatNumber(token.market_cap, { style: 'currency', currency: 'USD', notation: 'compact', compactDisplay: 'short' })}</TableCell>
+                      <TableCell className="font-data">{formatPercentage(token.market_cap_dominance)}</TableCell>
+                    </TableRow>
+                  );
+                } else {
+                  const processedToken = item as ProcessedMemeToken;
+                  const tokenInfo = processedToken.tokenInfo;
+                  const selectedPair = processedToken.selectedPairData;
+                  const isExpanded = expandedTokenPairs[tokenInfo.token_address] || false;
+
+                  return (
+                    <React.Fragment key={`meme-token-${tokenInfo.token_address}`}>
+                      <TableRow key={`meme-${tokenInfo.token_address}-selected`} className="dark:border-[var(--border-color)] hover:bg-muted/50">
+                        <TableCell className="sticky left-0 bg-card dark:bg-[var(--bg-surface)] z-30 pl-4">
+                          <div className="flex items-center space-x-3 w-[200px]">
+                            {tokenInfo.token_icon_url ? (
+                              <div className="w-7 h-7 rounded-full bg-muted dark:bg-muted flex-shrink-0 overflow-hidden">
+                                <Image src={tokenInfo.token_icon_url} alt={`${tokenInfo.token_name} icon`} width={28} height={28} className="w-full h-full object-cover" unoptimized/>
+                              </div>
+                            ) : (
+                              <div className="w-7 h-7 rounded-full bg-muted dark:bg-muted flex-shrink-0" title={tokenInfo.token_name} />
+                            )}
+                            <div className="flex flex-col items-start min-w-0 flex-1">
+                              <div className="flex items-center w-full">
+                                <a href={`https://dexscreener.com/${selectedPair.chain_id}/${selectedPair.pair_address}`} target="_blank" rel="noopener noreferrer" className="font-data font-bold truncate block hover:text-primary hover:underline transition-colors ml-1" title={tokenInfo.token_name}>
+                                  {tokenInfo.token_name}
+                                </a>
+                                {processedToken.allPairData.length > 1 && (
+                                  <Button variant="ghost" size="icon" className="h-6 w-6 p-0.5 text-muted-foreground hover:text-foreground cursor-pointer ml-1 flex-shrink-0" onClick={() => toggleTokenPairsExpansion(tokenInfo.token_address)} title={isExpanded ? "Hide pairs" : "Show pairs"}>
+                                    {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                  </Button>
+                                )}
+                              </div>
+                              <span className="text-xs text-muted-foreground truncate block ml-1">{tokenInfo.token_symbol}</span>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-data">{selectedPair.dex_id}</TableCell>
+                        <TableCell className="font-data">{formatNumber(selectedPair.price_usd, { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 8 })}</TableCell>
+                        <TableCell className={`font-data ${getChangeColor(selectedPair.percent_change_5m)}`}>{formatPercentage(selectedPair.percent_change_5m)}</TableCell>
+                        <TableCell className={`font-data ${getChangeColor(selectedPair.percent_change_1h)}`}>{formatPercentage(selectedPair.percent_change_1h)}</TableCell>
+                        <TableCell className={`font-data ${getChangeColor(selectedPair.percent_change_6h)}`}>{formatPercentage(selectedPair.percent_change_6h)}</TableCell>
+                        <TableCell className={`font-data ${getChangeColor(selectedPair.percent_change_24h)}`}>{formatPercentage(selectedPair.percent_change_24h)}</TableCell>
+                        <TableCell className="font-data">{formatNumber(selectedPair.volume_5m, {notation: 'compact', compactDisplay: 'short'})}</TableCell>
+                        <TableCell className="font-data">{formatNumber(selectedPair.volume_1h, {notation: 'compact', compactDisplay: 'short'})}</TableCell>
+                        <TableCell className="font-data">{formatNumber(selectedPair.volume_6h, {notation: 'compact', compactDisplay: 'short'})}</TableCell>
+                        <TableCell className="font-data">{formatNumber(selectedPair.volume_24h, {notation: 'compact', compactDisplay: 'short'})}</TableCell>
+                        <TableCell className="font-data">{`${selectedPair.txns_buys_5m ?? 0}/${selectedPair.txns_sells_5m ?? 0}`}</TableCell>
+                        <TableCell className="font-data">{`${selectedPair.txns_buys_1h ?? 0}/${selectedPair.txns_sells_1h ?? 0}`}</TableCell>
+                        <TableCell className="font-data">{`${selectedPair.txns_buys_6h ?? 0}/${selectedPair.txns_sells_6h ?? 0}`}</TableCell>
+                        <TableCell className="font-data">{`${selectedPair.txns_buys_24h ?? 0}/${selectedPair.txns_sells_24h ?? 0}`}</TableCell>
+                        <TableCell className="font-data">{formatNumber(selectedPair.liquidity_usd, { style: 'currency', currency: 'USD', notation: 'compact', compactDisplay: 'short' })}</TableCell>
+                        <TableCell className="font-data">{formatNumber(selectedPair.market_cap, { style: 'currency', currency: 'USD', notation: 'compact', compactDisplay: 'short' })}</TableCell>
+                      </TableRow>
+                      {isExpanded && processedToken.allPairData.filter(pairData => pairData.pair_address !== selectedPair.pair_address).map((pairData, index) => (
+                        <TableRow key={`meme-${tokenInfo.token_address}-pair-${pairData.pair_address || index}`} className="dark:border-[var(--border-color)] bg-muted/20 hover:bg-muted/50">
+                          <TableCell className="sticky left-0 bg-card dark:bg-[var(--bg-surface)] z-20 pl-16">
+                            <div className="flex items-center space-x-3 w-[calc(200px-1.5rem)]">
+                              <a href={`https://dexscreener.com/${pairData.chain_id}/${pairData.pair_address}`} target="_blank" rel="noopener noreferrer" className="font-data text-sm truncate block hover:text-primary hover:underline transition-colors" title={`View ${pairData.dex_id} pair on DexScreener`}>
+                                {pairData.dex_id} Pair
+                              </a>
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-data text-sm">{pairData.dex_id}</TableCell>
+                          <TableCell className="font-data text-sm">{formatNumber(pairData.price_usd, { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 8 })}</TableCell>
+                          <TableCell className={`font-data text-sm ${getChangeColor(pairData.percent_change_5m)}`}>{formatPercentage(pairData.percent_change_5m)}</TableCell>
+                          <TableCell className={`font-data text-sm ${getChangeColor(pairData.percent_change_1h)}`}>{formatPercentage(pairData.percent_change_1h)}</TableCell>
+                          <TableCell className={`font-data text-sm ${getChangeColor(pairData.percent_change_6h)}`}>{formatPercentage(pairData.percent_change_6h)}</TableCell>
+                          <TableCell className={`font-data text-sm ${getChangeColor(pairData.percent_change_24h)}`}>{formatPercentage(pairData.percent_change_24h)}</TableCell>
+                          <TableCell className="font-data text-sm">{formatNumber(pairData.volume_5m, {notation: 'compact', compactDisplay: 'short'})}</TableCell>
+                          <TableCell className="font-data text-sm">{formatNumber(pairData.volume_1h, {notation: 'compact', compactDisplay: 'short'})}</TableCell>
+                          <TableCell className="font-data text-sm">{formatNumber(pairData.volume_6h, {notation: 'compact', compactDisplay: 'short'})}</TableCell>
+                          <TableCell className="font-data text-sm">{formatNumber(pairData.volume_24h, {notation: 'compact', compactDisplay: 'short'})}</TableCell>
+                          <TableCell className="font-data text-sm">{`${pairData.txns_buys_5m ?? 0}/${pairData.txns_sells_5m ?? 0}`}</TableCell>
+                          <TableCell className="font-data text-sm">{`${pairData.txns_buys_1h ?? 0}/${pairData.txns_sells_1h ?? 0}`}</TableCell>
+                          <TableCell className="font-data text-sm">{`${pairData.txns_buys_6h ?? 0}/${pairData.txns_sells_6h ?? 0}`}</TableCell>
+                          <TableCell className="font-data text-sm">{`${pairData.txns_buys_24h ?? 0}/${pairData.txns_sells_24h ?? 0}`}</TableCell>
+                          <TableCell className="font-data text-sm">{formatNumber(pairData.liquidity_usd, { style: 'currency', currency: 'USD', notation: 'compact', compactDisplay: 'short' })}</TableCell>
+                          <TableCell className="font-data text-sm">{formatNumber(pairData.market_cap, { style: 'currency', currency: 'USD', notation: 'compact', compactDisplay: 'short' })}</TableCell>
+                        </TableRow>
+                      ))}
+                    </React.Fragment>
+                  );
+                }
+              })}
             </TableBody>
           </Table>
         </div>

@@ -164,3 +164,12 @@
 }
 
 /* .font-luckiestGuy 类将被移除，因此这里留空表示删除 */
+
+.sticky {
+  background-color: var(--card);
+  z-index: 40;
+}
+.dark .sticky {
+  background-color: var(--bg-surface);
+  z-index: 40;
+}
