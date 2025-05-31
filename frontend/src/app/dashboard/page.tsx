@@ -15,6 +15,13 @@ import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Toaster } from "sonner";
 import React from 'react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface latest_main_coins_data {
   id: number;
@@ -107,11 +114,9 @@ interface TokenDataState {
   rawMemeCoinPairs: latest_meme_coins_data[];
 }
 
-// 添加排序状态类型
 type SortDirection = 'asc' | 'desc' | null;
 type SortColumn = string | null;
 
-// 修改 SupabaseRealtimePayload 类型
 type SupabaseRealtimePayload<T> = {
   eventType: 'INSERT' | 'UPDATE' | 'DELETE';
   new: T;
@@ -120,7 +125,8 @@ type SupabaseRealtimePayload<T> = {
   table: string;
 };
 
-// 通用增量更新工具
+type StrategySignal = 'Buy' | 'Sell' | '';
+
 function updateOrAdd<T>(arr: T[], newItem: T, idField: keyof T): T[] {
   let found = false;
   const newList = arr.map(item => {
@@ -134,7 +140,6 @@ function updateOrAdd<T>(arr: T[], newItem: T, idField: keyof T): T[] {
   return newList;
 }
 
-// 类型守卫，判断 err 是否有 message 字段
 function isErrorWithMessage(e: unknown): e is { message: string } {
   return (
     typeof e === 'object' &&
@@ -142,6 +147,101 @@ function isErrorWithMessage(e: unknown): e is { message: string } {
     'message' in e &&
     typeof (e as { message?: unknown }).message === 'string'
   );
+}
+
+function applyStrategyLogic(
+  item: latest_main_coins_data | ProcessedMemeToken,
+  selectedStrategy: string | null,
+  chainType: ChainType
+): StrategySignal {
+  if (!selectedStrategy) return '';
+
+  const isMainCoin = chainType === 'main';
+  const data = isMainCoin ? (item as latest_main_coins_data) : (item as ProcessedMemeToken).selectedPairData;
+  
+  if (!data) return '';
+
+  if (isMainCoin) {
+    const mainData = data as latest_main_coins_data;
+    if (selectedStrategy === 'test1_main') {
+      // 买入条件（任意满足1项即可）
+      const buySignal1 = 
+        mainData.percent_change_1h !== null && mainData.percent_change_1h >= 0.5
+
+      const buySignal2 = 
+        mainData.percent_change_24h !== null && mainData.percent_change_24h >= 2 
+
+      if (buySignal1 || buySignal2) return 'Buy';
+
+      // 卖出条件（必须满足2项）
+      const sellSignal1 = mainData.percent_change_1h !== null && mainData.percent_change_1h <= -1;
+
+      if (sellSignal1) return 'Sell';
+
+    } else if (selectedStrategy === 'test2_main') {
+      // 买入条件（任意满足1项）
+      const buySignal1 = 
+        mainData.percent_change_24h !== null && mainData.percent_change_24h >= 1;
+      
+      const buySignal2 = 
+        mainData.percent_change_7d !== null && mainData.percent_change_7d >= 3
+
+      if (buySignal1 || buySignal2) return 'Buy';
+
+      // 卖出条件（必须满足2项）
+      const sellSignal1 = mainData.percent_change_1h !== null && mainData.percent_change_1h <= -1.5;
+      const sellSignal2 = mainData.percent_change_24h !== null && mainData.percent_change_24h <= 0;
+
+      if (sellSignal1 && sellSignal2) return 'Sell';
+    }
+  } else {
+    const memeData = data as latest_meme_coins_data;
+    const buys5m = memeData.txns_buys_5m ?? 0;
+    const sells5m = memeData.txns_sells_5m ?? 0;
+    const buys1h = memeData.txns_buys_1h ?? 0;
+    const sells1h = memeData.txns_sells_1h ?? 0;
+
+    const calculateRatio = (num: number, den: number): number => {
+      if (den > 0) return num / den;
+      if (num > 0) return Infinity;
+      return 0;
+    };
+    
+    const ratio5m = calculateRatio(buys5m, sells5m);
+    const ratio1h = calculateRatio(buys1h, sells1h);
+
+    if (selectedStrategy === 'test1_meme') {
+      // 买入条件（任意满足1项）
+      const buySignal = 
+        memeData.percent_change_5m !== null && memeData.percent_change_5m >= 3 &&
+        ratio5m >= 1.3 &&
+        memeData.volume_5m !== null && memeData.volume_5m >= 30000 &&
+        memeData.percent_change_24h !== null && memeData.percent_change_24h >= 5
+
+      if (buySignal) return 'Buy';
+
+      // 卖出条件（必须满足2项）
+      const sellSignal1 = memeData.percent_change_5m !== null && memeData.percent_change_5m <= -4;
+      const sellSignal2 = ratio5m <= 1;
+
+      if (sellSignal1 && sellSignal2) return 'Sell';
+
+    } else if (selectedStrategy === 'test2_meme') {
+      // 买入条件（任意满足1项）
+      const buySignal = 
+        memeData.percent_change_1h !== null && memeData.percent_change_1h >= 15 &&
+        memeData.txns_buys_1h !== null && memeData.txns_buys_1h >= 50 &&
+        ratio1h >= 1.5 &&
+        memeData.percent_change_24h !== null && memeData.percent_change_24h >= 5
+      
+      if (buySignal) return 'Buy';
+      
+      // 卖出条件
+      const sellSignal = memeData.percent_change_5m !== null && memeData.percent_change_5m <= -5;
+      if (sellSignal) return 'Sell';
+    }
+  }
+  return '';
 }
 
 export default function DashboardPage() {
@@ -168,16 +268,22 @@ export default function DashboardPage() {
   const mainTableRef = useRef<HTMLDivElement>(null);
   const [sortColumn, setSortColumn] = useState<SortColumn>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+  const [selectedStrategy, setSelectedStrategy] = useState<string | null>(null);
+  const [imageErrorMap, setImageErrorMap] = useState<{ [url: string]: boolean }>({});
 
-  const formatUTCDate = (date: Date) => {
-    const year = date.getUTCFullYear();
-    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(date.getUTCDate()).padStart(2, '0');
-    const hours = String(date.getUTCHours()).padStart(2, '0');
-    const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-    const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+  const formatLocalDateTime = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
     
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} (UTC+0)`;
+    const timezoneOffset = date.getTimezoneOffset();
+    const timezoneHours = Math.abs(Math.floor(timezoneOffset / 60));
+    const timezoneSign = timezoneOffset <= 0 ? '+' : '-';
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} (UTC${timezoneSign}${timezoneHours})`;
   };
 
   const processAndSetTokenData = (
@@ -244,9 +350,9 @@ export default function DashboardPage() {
       ].filter(Boolean).map(d => new Date(d).getTime());
 
       if (lastUpdatedTimes.length > 0) {
-        setLastUpdatedAt(formatUTCDate(new Date(Math.max(...lastUpdatedTimes))));
+        setLastUpdatedAt(formatLocalDateTime(new Date(Math.max(...lastUpdatedTimes))));
       } else {
-        setLastUpdatedAt(formatUTCDate(new Date()));
+        setLastUpdatedAt(formatLocalDateTime(new Date()));
       }
 
     } catch (err: unknown) {
@@ -337,7 +443,7 @@ export default function DashboardPage() {
         rawMemeCoinPairs: newRawMemeCoinPairs,
       };
     });
-    setLastUpdatedAt(formatUTCDate(new Date()));
+    setLastUpdatedAt(formatLocalDateTime(new Date()));
   }, []);
 
   useEffect(() => {
@@ -413,7 +519,6 @@ export default function DashboardPage() {
 
   useEffect(() => { setMemePage(1); setMainPage(1); }, [selectedChain]);
 
-  // 修改排序处理函数
   const handleSort = (column: string) => {
     if (sortColumn === column) {
       if (sortDirection === 'desc') {
@@ -430,7 +535,6 @@ export default function DashboardPage() {
     }
   };
 
-  // 修改排序逻辑
   const mainCoinsSorted = useMemo(() => {
     const sorted = [...tokenData.mainCoins];
     if (sortColumn && sortDirection) {
@@ -449,7 +553,6 @@ export default function DashboardPage() {
         return 0;
       });
     } else {
-      // 默认按 id 升序排序
       sorted.sort((a, b) => a.id - b.id);
     }
     return sorted;
@@ -512,7 +615,6 @@ export default function DashboardPage() {
     }));
   };
 
-  // 增量更新工具函数
   function updateProcessedMemeTokensByChain(
     prev: TokenDataState['processedMemeTokensByChain'],
     updatedToken: token_info,
@@ -520,7 +622,6 @@ export default function DashboardPage() {
   ) {
     const chain = updatedToken.chain_id as 'solana' | 'bsc' | 'base';
     const prevList = prev[chain] || [];
-    // 找到所有相关pair
     const relevantPairs = allPairs.filter(pairData =>
       updatedToken.dex_pairs?.some(dp => dp.pair_address === pairData.pair_address && pairData.chain_id === updatedToken.chain_id)
     );
@@ -534,7 +635,6 @@ export default function DashboardPage() {
       allPairData: relevantPairs,
       selectedPairData: selectedPair
     };
-    // 替换或插入该token
     let found = false;
     const newList = prevList.map(t => {
       if (t.tokenInfo.token_address === updatedToken.token_address) {
@@ -550,7 +650,6 @@ export default function DashboardPage() {
     };
   }
 
-  // 添加排序指示器组件
   const SortIndicator = ({ column }: { column: string }) => {
     if (sortColumn !== column) return null;
     return (
@@ -559,6 +658,20 @@ export default function DashboardPage() {
       </span>
     );
   };
+
+  const mainStrategies = [
+    { value: 'test1_main', label: 'Test 1' },
+    { value: 'test2_main', label: 'Test 2' },
+  ];
+  const memeStrategies = [
+    { value: 'test1_meme', label: 'Test 3' },
+    { value: 'test2_meme', label: 'Test 4' },
+  ];
+  const currentStrategies = selectedChain === 'main' ? mainStrategies : memeStrategies;
+
+  useEffect(() => {
+    setSelectedStrategy(selectedChain === 'main' ? 'test1_main' : 'test1_meme');
+  }, [selectedChain]);
 
   return (
     <div className="container py-5 mx-auto">
@@ -616,51 +729,65 @@ export default function DashboardPage() {
       ) : getCurrentData().length === 0 && !error ? (
         <p>No tokens found...</p>
       ) : (
-        <div ref={selectedChain === 'main' ? mainTableRef : memeTableRef} style={{ maxHeight: 700, overflowY: 'auto' }} className="overflow-x-auto rounded-md border w-full bg-card dark:bg-[var(--bg-surface)] dark:border-[var(--border-color)] shadow-[0_2px_8px_0_rgba(0,0,0,0.08)] dark:shadow-[0_2px_8px_0_rgba(255,255,255,0.08)] hover:shadow-[0_4px_12px_0_rgba(0,0,0,0.12)] dark:hover:shadow-[0_4px_12px_0_rgba(255,255,255,0.12)] transition-shadow duration-200">
+        <div ref={selectedChain === 'main' ? mainTableRef : memeTableRef} style={{ maxHeight: 700, overflowY: 'auto' }} className="overflow-x-auto rounded-md border w-full bg-card dark:bg-[var(--bg-surface)] dark:border-slate-700 shadow-[0_2px_8px_0_rgba(0,0,0,0.08)] dark:shadow-[0_2px_8px_0_rgba(255,255,255,0.08)] hover:shadow-[0_4px_12px_0_rgba(0,0,0,0.12)] dark:hover:shadow-[0_4px_12px_0_rgba(255,255,255,0.12)] transition-shadow duration-200">
           <Table>
-            <TableHeader className="sticky top-0 bg-inherit z-10">
-              <TableRow className="dark:border-[var(--border-color)]">
+            <TableHeader className="sticky top-0 bg-card dark:bg-[var(--bg-surface)] z-30">
+              <TableRow className="dark:border-slate-700">
+                <TableHead className="sticky left-0 z-20 bg-card dark:bg-[var(--bg-surface)] w-[100px] font-heading pl-4 text-left align-middle">
+                  <Select value={selectedStrategy || ''} onValueChange={(value: string) => setSelectedStrategy(value === 'none' ? null : value)}>
+                    <SelectTrigger className="w-full h-9 text-xs border-0 shadow-none ring-0 focus:ring-0 focus-visible:ring-0 outline-none">
+                      <SelectValue placeholder="Strategy" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card dark:bg-[var(--bg-surface)]">
+                      {currentStrategies.map(strategy => (
+                        <SelectItem key={strategy.value} value={strategy.value} className="text-xs">
+                          {strategy.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </TableHead>
                 {selectedChain === 'main' ? (
                   <>
-                    <TableHead className="sticky left-0 bg-card dark:bg-[var(--bg-surface)] z-30 w-[200px] font-heading pl-4">Token</TableHead>
+                    <TableHead className="sticky left-[100px] z-10 bg-card dark:bg-[var(--bg-surface)] w-[180px] font-heading pl-4">Token</TableHead>
                     <TableHead 
-                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      className="bg-card dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50 w-[120px]"
                       onClick={() => handleSort('price_usd')}
                     >
                       Price <SortIndicator column="price_usd" />
                     </TableHead>
                     <TableHead 
-                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      className="bg-card dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50 w-[120px]"
                       onClick={() => handleSort('percent_change_1h')}
                     >
                       1h Change <SortIndicator column="percent_change_1h" />
                     </TableHead>
                     <TableHead 
-                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      className="bg-card dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50 w-[120px]"
                       onClick={() => handleSort('percent_change_24h')}
                     >
                       24h Change <SortIndicator column="percent_change_24h" />
                     </TableHead>
                     <TableHead 
-                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      className="bg-card dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50 w-[120px]"
                       onClick={() => handleSort('percent_change_7d')}
                     >
                       7d Change <SortIndicator column="percent_change_7d" />
                     </TableHead>
                     <TableHead 
-                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      className="bg-card dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50 w-[120px]"
                       onClick={() => handleSort('volume_24h')}
                     >
                       24h Volume <SortIndicator column="volume_24h" />
                     </TableHead>
                     <TableHead 
-                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      className="bg-card dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50 w-[120px]"
                       onClick={() => handleSort('market_cap')}
                     >
                       Market Cap <SortIndicator column="market_cap" />
                     </TableHead>
                     <TableHead 
-                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      className="bg-card dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50 w-[120px]"
                       onClick={() => handleSort('market_cap_dominance')}
                     >
                       Dominance <SortIndicator column="market_cap_dominance" />
@@ -668,94 +795,94 @@ export default function DashboardPage() {
                   </>
                 ) : (
                   <>
-                    <TableHead className="sticky left-0 bg-card dark:bg-[var(--bg-surface)] z-30 w-[200px] font-heading pl-4">Token</TableHead>
-                    <TableHead className="bg-inherit dark:bg-[var(--bg-surface)] font-heading">DEX</TableHead>
+                    <TableHead className="sticky left-[100px] z-10 bg-card dark:bg-[var(--bg-surface)] w-[180px] font-heading pl-4">Token</TableHead>
+                    <TableHead className="bg-card dark:bg-[var(--bg-surface)] font-heading">DEX</TableHead>
                     <TableHead 
-                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      className="bg-card dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50 w-[120px]"
                       onClick={() => handleSort('price_usd')}
                     >
                       Price <SortIndicator column="price_usd" />
                     </TableHead>
                     <TableHead 
-                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      className="bg-card dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50 w-[120px]"
                       onClick={() => handleSort('percent_change_5m')}
                     >
                       5m Change <SortIndicator column="percent_change_5m" />
                     </TableHead>
                     <TableHead 
-                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      className="bg-card dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50 w-[120px]"
                       onClick={() => handleSort('percent_change_1h')}
                     >
                       1h Change <SortIndicator column="percent_change_1h" />
                     </TableHead>
                     <TableHead 
-                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      className="bg-card dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50 w-[120px]"
                       onClick={() => handleSort('percent_change_6h')}
                     >
                       6h Change <SortIndicator column="percent_change_6h" />
                     </TableHead>
                     <TableHead 
-                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      className="bg-card dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50 w-[120px]"
                       onClick={() => handleSort('percent_change_24h')}
                     >
                       24h Change <SortIndicator column="percent_change_24h" />
                     </TableHead>
                     <TableHead 
-                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      className="bg-card dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50 w-[120px]"
                       onClick={() => handleSort('volume_5m')}
                     >
                       5m Volume <SortIndicator column="volume_5m" />
                     </TableHead>
                     <TableHead 
-                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      className="bg-card dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50 w-[120px]"
                       onClick={() => handleSort('volume_1h')}
                     >
                       1h Volume <SortIndicator column="volume_1h" />
                     </TableHead>
                     <TableHead 
-                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      className="bg-card dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50 w-[120px]"
                       onClick={() => handleSort('volume_6h')}
                     >
                       6h Volume <SortIndicator column="volume_6h" />
                     </TableHead>
                     <TableHead 
-                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      className="bg-card dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50 w-[120px]"
                       onClick={() => handleSort('volume_24h')}
                     >
                       24h Volume <SortIndicator column="volume_24h" />
                     </TableHead>
                     <TableHead 
-                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      className="bg-card dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50 w-[120px]"
                       onClick={() => handleSort('txns_buys_5m')}
                     >
                       5m Txns (B/S) <SortIndicator column="txns_buys_5m" />
                     </TableHead>
                     <TableHead 
-                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      className="bg-card dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50 w-[120px]"
                       onClick={() => handleSort('txns_buys_1h')}
                     >
                       1h Txns (B/S) <SortIndicator column="txns_buys_1h" />
                     </TableHead>
                     <TableHead 
-                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      className="bg-card dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50 w-[120px]"
                       onClick={() => handleSort('txns_buys_6h')}
                     >
                       6h Txns (B/S) <SortIndicator column="txns_buys_6h" />
                     </TableHead>
                     <TableHead 
-                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      className="bg-card dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50 w-[120px]"
                       onClick={() => handleSort('txns_buys_24h')}
                     >
                       24h Txns (B/S) <SortIndicator column="txns_buys_24h" />
                     </TableHead>
                     <TableHead 
-                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      className="bg-card dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50 w-[120px]"
                       onClick={() => handleSort('liquidity_usd')}
                     >
                       Liquidity <SortIndicator column="liquidity_usd" />
                     </TableHead>
                     <TableHead 
-                      className="bg-inherit dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50"
+                      className="bg-card dark:bg-[var(--bg-surface)] font-heading cursor-pointer hover:bg-muted/50 w-[120px]"
                       onClick={() => handleSort('market_cap')}
                     >
                       Market Cap <SortIndicator column="market_cap" />
@@ -766,13 +893,19 @@ export default function DashboardPage() {
             </TableHeader>
             <TableBody>
               {getCurrentData().map((item: latest_main_coins_data | ProcessedMemeToken) => {
+                const tagSignal = applyStrategyLogic(item, selectedStrategy, selectedChain);
                 if (selectedChain === 'main') {
                   const token = item as latest_main_coins_data;
                   return (
-                    <TableRow key={`main-${token.id}`} className="dark:border-[var(--border-color)]">
-                      <TableCell className="sticky left-0 bg-card dark:bg-[var(--bg-surface)] z-30 pl-4">
-                        <div className="flex items-center space-x-3 w-[200px]">
-                          {token.ucid && (
+                    <TableRow key={`main-${token.id}`} className="dark:border-slate-700">
+                      <TableCell className="sticky left-0 z-20 bg-card dark:bg-[var(--bg-surface)] w-[100px] pl-4 font-data align-middle">
+                        <span className={`px-2 py-1 text-xs rounded-full ${tagSignal === 'Buy' ? 'bg-green-500/20 text-green-700 dark:text-green-400' : tagSignal === 'Sell' ? 'bg-red-500/20 text-red-700 dark:text-red-400' : 'text-muted-foreground'}`}>
+                          {tagSignal || '-'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="sticky left-[100px] z-10 bg-card dark:bg-[var(--bg-surface)] w-[180px] pl-4 font-data align-middle">
+                        <div className="flex items-center space-x-3">
+                          {token.ucid && !imageErrorMap[`https://s2.coinmarketcap.com/static/img/coins/64x64/${token.ucid}.png`] ? (
                             <div className="w-7 h-7 rounded-full bg-muted dark:bg-muted flex-shrink-0 overflow-hidden">
                               <Image
                                 src={`https://s2.coinmarketcap.com/static/img/coins/64x64/${token.ucid}.png`}
@@ -781,8 +914,11 @@ export default function DashboardPage() {
                                 height={28}
                                 className="w-full h-full object-cover"
                                 unoptimized
+                                onError={() => setImageErrorMap(prev => ({ ...prev, [`https://s2.coinmarketcap.com/static/img/coins/64x64/${token.ucid}.png`]: true }))}
                               />
                             </div>
+                          ) : (
+                            <div className="w-7 h-7 rounded-full bg-muted dark:bg-muted flex-shrink-0" title={token.name} />
                           )}
                           <div className="flex flex-col items-start min-w-0 flex-1">
                             <a
@@ -815,12 +951,25 @@ export default function DashboardPage() {
 
                   return (
                     <React.Fragment key={`meme-token-${tokenInfo.token_address}`}>
-                      <TableRow key={`meme-${tokenInfo.token_address}-selected`} className="dark:border-[var(--border-color)] hover:bg-muted/50">
-                        <TableCell className="sticky left-0 bg-card dark:bg-[var(--bg-surface)] z-30 pl-4">
-                          <div className="flex items-center space-x-3 w-[200px]">
-                            {tokenInfo.token_icon_url ? (
+                      <TableRow key={`meme-${tokenInfo.token_address}-selected`} className="dark:border-slate-700 hover:bg-muted/50">
+                        <TableCell className="sticky left-0 z-20 bg-card dark:bg-[var(--bg-surface)] w-[100px] pl-4 font-data align-middle">
+                         <span className={`px-2 py-1 text-xs rounded-full ${tagSignal === 'Buy' ? 'bg-green-500/20 text-green-700 dark:text-green-400' : tagSignal === 'Sell' ? 'bg-red-500/20 text-red-700 dark:text-red-400' : 'text-muted-foreground'}`}>
+                            {tagSignal || '-'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="sticky left-[100px] z-10 bg-card dark:bg-[var(--bg-surface)] w-[180px] pl-4 font-data align-middle">
+                          <div className="flex items-center space-x-3">
+                            {tokenInfo.token_icon_url && !imageErrorMap[tokenInfo.token_icon_url] ? (
                               <div className="w-7 h-7 rounded-full bg-muted dark:bg-muted flex-shrink-0 overflow-hidden">
-                                <Image src={tokenInfo.token_icon_url} alt={`${tokenInfo.token_name} icon`} width={28} height={28} className="w-full h-full object-cover" unoptimized/>
+                                <Image 
+                                  src={tokenInfo.token_icon_url} 
+                                  alt={`${tokenInfo.token_name} icon`} 
+                                  width={28} 
+                                  height={28} 
+                                  className="w-full h-full object-cover" 
+                                  unoptimized
+                                  onError={() => setImageErrorMap(prev => ({ ...prev, [tokenInfo.token_icon_url!]: true }))}
+                                />
                               </div>
                             ) : (
                               <div className="w-7 h-7 rounded-full bg-muted dark:bg-muted flex-shrink-0" title={tokenInfo.token_name} />
@@ -858,10 +1007,11 @@ export default function DashboardPage() {
                         <TableCell className="font-data">{formatNumber(selectedPair.market_cap, { style: 'currency', currency: 'USD', notation: 'compact', compactDisplay: 'short' })}</TableCell>
                       </TableRow>
                       {isExpanded && processedToken.allPairData.filter(pairData => pairData.pair_address !== selectedPair.pair_address).map((pairData, index) => (
-                        <TableRow key={`meme-${tokenInfo.token_address}-pair-${pairData.pair_address || index}`} className="dark:border-[var(--border-color)] bg-muted/20 hover:bg-muted/50">
-                          <TableCell className="sticky left-0 bg-card dark:bg-[var(--bg-surface)] z-20 pl-16">
-                            <div className="flex items-center space-x-3 w-[calc(200px-1.5rem)]">
-                              <a href={`https://dexscreener.com/${pairData.chain_id}/${pairData.pair_address}`} target="_blank" rel="noopener noreferrer" className="font-data text-sm truncate block hover:text-primary hover:underline transition-colors" title={`View ${pairData.dex_id} pair on DexScreener`}>
+                        <TableRow key={`meme-${tokenInfo.token_address}-pair-${pairData.pair_address || index}`} className="dark:border-slate-700 bg-muted/20 hover:bg-muted/50">
+                          <TableCell className="sticky left-0 z-20 bg-muted dark:bg-muted w-[100px] pl-4 font-data align-middle text-sm"></TableCell>
+                          <TableCell className="sticky left-[100px] z-10 bg-muted dark:bg-muted pl-16 font-data align-middle text-sm">
+                            <div className="flex items-center space-x-3 w-[calc(180px-4rem)]">
+                              <a href={`https://dexscreener.com/${pairData.chain_id}/${pairData.pair_address}`} target="_blank" rel="noopener noreferrer" className="truncate block hover:text-primary hover:underline transition-colors" title={`View ${pairData.dex_id} pair on DexScreener`}>
                                 {pairData.dex_id} Pair
                               </a>
                             </div>
